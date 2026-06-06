@@ -1,101 +1,176 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { logDose } from "@/lib/actions";
+import { MinusIcon, PlusIcon } from "./icons";
 
 const GIVER_KEY = "pawscriptions_giver";
 
 export function GiveDose({
   medicationId,
+  medicationName,
   scheduledFor,
   defaultDose,
   unit,
   label = "Give",
 }: {
   medicationId: string;
+  medicationName: string;
   scheduledFor?: string;
   defaultDose: number | null;
   unit: string;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
-  const giverRef = useRef<HTMLInputElement>(null);
+  const [dose, setDose] = useState<string>(defaultDose != null ? String(defaultDose) : "");
+  const [givenBy, setGivenBy] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Open/close with an enter/exit transition; lock body scroll while open.
+  function openSheet() {
+    setDose(defaultDose != null ? String(defaultDose) : "");
+    setNotes("");
+    setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
+    setOpen(true);
+  }
+  function closeSheet() {
+    setShow(false);
+    setTimeout(() => setOpen(false), 200);
+  }
 
   useEffect(() => {
-    if (open && giverRef.current && !giverRef.current.value) {
-      giverRef.current.value = localStorage.getItem(GIVER_KEY) ?? "";
-    }
+    if (!open) return;
+    const raf = requestAnimationFrame(() => setShow(true));
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeSheet();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
-  async function action(formData: FormData) {
+  function step(delta: number) {
+    setDose((d) => {
+      const n = (parseFloat(d) || 0) + delta;
+      return String(Math.max(0, Math.round(n * 100) / 100));
+    });
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
     setPending(true);
-    const giver = String(formData.get("given_by") ?? "");
-    if (giver) localStorage.setItem(GIVER_KEY, giver);
+    const fd = new FormData();
+    fd.set("medication_id", medicationId);
+    if (scheduledFor) fd.set("scheduled_for", scheduledFor);
+    fd.set("unit", unit);
+    if (dose !== "") fd.set("dose_amount", dose);
+    if (givenBy) {
+      fd.set("given_by", givenBy);
+      localStorage.setItem(GIVER_KEY, givenBy);
+    }
+    if (notes) fd.set("notes", notes);
     try {
-      await logDose(formData);
-      setOpen(false);
+      await logDose(fd);
+      closeSheet();
     } finally {
       setPending(false);
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
-        onClick={() => setOpen(true)}
-        className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+        onClick={openSheet}
+        className="tap shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
       >
         {label}
       </button>
-    );
-  }
 
-  return (
-    <form action={action} className="mt-2 flex flex-col gap-2 rounded-lg bg-slate-50 p-3">
-      <input type="hidden" name="medication_id" value={medicationId} />
-      {scheduledFor && <input type="hidden" name="scheduled_for" value={scheduledFor} />}
-      <input type="hidden" name="unit" value={unit} />
-      <label className="flex items-center justify-between gap-2 text-sm">
-        <span className="text-slate-600">Dose ({unit})</span>
-        <input
-          name="dose_amount"
-          type="number"
-          step="any"
-          defaultValue={defaultDose ?? ""}
-          className="w-24 rounded border border-slate-300 px-2 py-1 text-right"
-        />
-      </label>
-      <label className="flex items-center justify-between gap-2 text-sm">
-        <span className="text-slate-600">Given by</span>
-        <input
-          ref={giverRef}
-          name="given_by"
-          placeholder="name"
-          className="w-32 rounded border border-slate-300 px-2 py-1"
-        />
-      </label>
-      <input
-        name="notes"
-        placeholder="Notes (optional)"
-        className="rounded border border-slate-300 px-2 py-1 text-sm"
-      />
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex-1 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-60"
-        >
-          {pending ? "Saving…" : "Confirm"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="rounded-lg px-3 py-2 text-sm text-slate-500"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={`Log dose for ${medicationName}`}>
+          <button
+            aria-label="Close"
+            onClick={closeSheet}
+            className={`absolute inset-0 bg-ink/40 backdrop-blur-[2px] transition-opacity duration-200 ${show ? "opacity-100" : "opacity-0"}`}
+          />
+          <form
+            onSubmit={submit}
+            className="glass relative mx-auto w-full max-w-md rounded-t-sheet border-t border-glass-border px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
+            style={{
+              boxShadow: "var(--shadow-lg)",
+              transform: show ? "translateY(0)" : "translateY(100%)",
+              transition: "transform 0.28s var(--ease-out-quint)",
+            }}
+          >
+            <div aria-hidden className="mx-auto mb-4 h-1 w-9 rounded-full bg-border-strong" />
+            <div className="mb-4">
+              <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">Log dose</p>
+              <p className="truncate text-lg font-semibold text-ink">{medicationName}</p>
+            </div>
+
+            {/* Dose stepper */}
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-row bg-surface-2 p-3">
+              <span className="text-sm font-medium text-muted">Dose ({unit})</span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => step(-1)} className="tap grid size-9 place-items-center rounded-full bg-surface text-ink shadow-[var(--shadow-sm)] hover:text-accent" aria-label="Decrease dose">
+                  <MinusIcon className="size-4" />
+                </button>
+                <input
+                  value={dose}
+                  onChange={(e) => setDose(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="—"
+                  aria-label="Dose amount"
+                  className="tnum w-16 bg-transparent text-center text-xl font-semibold text-ink outline-none"
+                />
+                <button type="button" onClick={() => step(1)} className="tap grid size-9 place-items-center rounded-full bg-surface text-ink shadow-[var(--shadow-sm)] hover:text-accent" aria-label="Increase dose">
+                  <PlusIcon className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <label className="mb-2 block">
+              <span className="sr-only">Given by</span>
+              <input
+                value={givenBy}
+                onChange={(e) => setGivenBy(e.target.value)}
+                placeholder="Given by (name)"
+                className="input"
+              />
+            </label>
+            <label className="mb-4 block">
+              <span className="sr-only">Notes</span>
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="input"
+              />
+            </label>
+
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={closeSheet}
+                className="tap rounded-full px-5 py-3 text-sm font-medium text-muted hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={pending}
+                className="tap flex-1 rounded-full bg-accent py-3 text-sm font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
+              >
+                {pending ? "Saving…" : "Confirm dose"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
   );
 }

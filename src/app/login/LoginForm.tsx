@@ -18,13 +18,17 @@ export function LoginForm({ next }: { next: string }) {
         autoFocus
         autoComplete="current-password"
         placeholder="Passphrase"
-        className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+        className="input"
       />
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && (
+        <p className="rounded-row bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
+          {state.error}
+        </p>
+      )}
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-teal-600 px-3 py-2 font-medium text-white hover:bg-teal-700 disabled:opacity-60"
+        className="tap rounded-full bg-accent py-3 font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
       >
         {pending ? "Checking…" : "Unlock"}
       </button>

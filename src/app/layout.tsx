@@ -1,11 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Soft serif, used only for brand moments (wordmark, greeting).
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["SOFT", "opsz"],
 });
 
 export const metadata: Metadata = {
@@ -15,16 +24,23 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Pawscriptions",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/icons/icon-192.png",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
     apple: "/icons/apple-touch-icon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0d9488",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAF6EF" },
+    { media: "(prefers-color-scheme: dark)", color: "#221913" },
+  ],
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -34,8 +50,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${fraunces.variable} h-full antialiased`}
+    >
+      <body className="flex min-h-full flex-col bg-bg text-ink">
         {children}
         <ServiceWorkerRegister />
       </body>

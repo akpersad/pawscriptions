@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BellIcon, CheckIcon } from "./icons";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -39,6 +40,10 @@ export function PushControls() {
   }
 
   useEffect(() => {
+    // Read the device's current push/permission state on mount (an external
+    // browser system); the synchronous setState in the unsupported/denied
+    // branches is intentional initialization, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, []);
 
@@ -106,40 +111,56 @@ export function PushControls() {
   }
 
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
-      <h2 className="font-medium">Reminders on this device</h2>
-
-      {status === "unsupported" && (
-        <div className="mt-2 text-sm text-slate-500">
-          <p>This browser can&apos;t receive push notifications.</p>
-          {!isStandalone && (
-            <p className="mt-2 rounded-lg bg-amber-50 p-2 text-amber-800">
-              On iPhone: tap the Share button → <b>Add to Home Screen</b>, then open
-              Pawscriptions from the home-screen icon to enable reminders. (Requires iOS 16.4+.)
-            </p>
-          )}
+    <section className="rounded-card bg-surface p-4 shadow-[var(--shadow-sm)]">
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
+          <BellIcon className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-semibold text-ink">Reminders</h2>
+          <p className="text-[0.8125rem] text-muted">
+            {status === "enabled"
+              ? "On for this device"
+              : status === "denied"
+                ? "Blocked in settings"
+                : status === "unsupported"
+                  ? "Not available here"
+                  : status === "loading"
+                    ? "Checking…"
+                    : "Off for this device"}
+          </p>
         </div>
+        {status === "enabled" && (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[0.75rem] font-medium text-success">
+            <CheckIcon className="size-3.5" /> On
+          </span>
+        )}
+      </div>
+
+      {status === "unsupported" && !isStandalone && (
+        <p className="mt-3 rounded-row bg-warning-soft p-3 text-[0.8125rem] leading-relaxed text-ink">
+          On iPhone: tap the Share button, choose <b className="font-semibold">Add to Home Screen</b>,
+          then open Pawscriptions from its icon to enable reminders. (Requires iOS 16.4+.)
+        </p>
       )}
 
       {status === "denied" && (
-        <p className="mt-2 text-sm text-red-600">
-          Notifications are blocked. Enable them for this site in your browser/OS settings,
-          then reload.
+        <p className="mt-3 rounded-row bg-danger-soft p-3 text-[0.8125rem] leading-relaxed text-ink">
+          Notifications are blocked. Enable them for this site in your browser or OS settings, then reload.
         </p>
       )}
 
       {status === "disabled" && (
-        <div className="mt-2">
+        <div className="mt-3">
           {!isStandalone && (
-            <p className="mb-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-800">
-              For reliable reminders on iPhone, first add this app to your Home Screen and
-              open it from there.
+            <p className="mb-3 rounded-row bg-warning-soft p-3 text-[0.8125rem] leading-relaxed text-ink">
+              For reliable reminders on iPhone, add this app to your Home Screen first and open it from there.
             </p>
           )}
           <button
             onClick={enable}
             disabled={busy}
-            className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            className="tap w-full rounded-full bg-accent py-2.5 text-sm font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
           >
             {busy ? "Enabling…" : "Enable reminders"}
           </button>
@@ -147,21 +168,25 @@ export function PushControls() {
       )}
 
       {status === "enabled" && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <span className="rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
-            ✓ Enabled
-          </span>
-          <button onClick={test} disabled={busy} className="text-sm text-slate-600 underline">
+        <div className="mt-3 flex gap-2.5">
+          <button
+            onClick={test}
+            disabled={busy}
+            className="tap flex-1 rounded-full border border-border bg-surface py-2.5 text-sm font-medium text-ink hover:bg-surface-2 disabled:opacity-60"
+          >
             Send test
           </button>
-          <button onClick={disable} disabled={busy} className="text-sm text-slate-500 underline">
+          <button
+            onClick={disable}
+            disabled={busy}
+            className="tap flex-1 rounded-full py-2.5 text-sm font-medium text-muted hover:bg-surface-2 disabled:opacity-60"
+          >
             Turn off
           </button>
         </div>
       )}
 
-      {status === "loading" && <p className="mt-2 text-sm text-slate-400">Checking…</p>}
-      {msg && <p className="mt-2 text-sm text-slate-500">{msg}</p>}
-    </div>
+      {msg && <p className="mt-3 text-[0.8125rem] text-muted">{msg}</p>}
+    </section>
   );
 }

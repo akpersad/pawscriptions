@@ -1,48 +1,298 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   Pawscriptions design tokens — "Tri-color Aussie"
+   A warm, premium pet-care system inspired by a tri-color mini Australian
+   Shepherd: espresso black, copper/tan, and cream white, with the breed's
+   amber eye as a sparing highlight. OKLCH throughout. Light + dark follow the
+   OS preference. Semantic vars live in :root (and the dark media query); the
+   @theme inline block below maps them to Tailwind utilities so colors flip at
+   runtime with the OS theme.
+   ========================================================================== */
+
+:root {
+  /* Surfaces — warm-neutral ramp tinted toward the coat's brown hue */
+  --bg: oklch(0.985 0.006 70);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.966 0.008 70);
+  --surface-3: oklch(0.945 0.011 68);
+  --border: oklch(0.905 0.012 68);
+  --border-strong: oklch(0.845 0.016 64);
+
+  /* Ink */
+  --ink: oklch(0.27 0.022 55);       /* espresso — primary text */
+  --muted: oklch(0.475 0.02 58);     /* secondary text (AA on surface) */
+  --faint: oklch(0.62 0.016 60);     /* decorative / tertiary only */
+
+  /* Brand — copper accent + amber highlight */
+  --accent: oklch(0.535 0.115 50);   /* copper — primary actions, active, given */
+  --accent-hover: oklch(0.475 0.118 48);
+  --accent-ink: oklch(0.995 0.01 90);/* text on accent */
+  --accent-soft: oklch(0.535 0.115 50 / 0.12);
+  --accent-ring: oklch(0.535 0.115 50 / 0.35);
+
+  --amber: oklch(0.72 0.12 70);      /* warm highlight */
+  --amber-soft: oklch(0.72 0.12 70 / 0.16);
+
+  /* State — calm, never alarming except destructive */
+  --success: oklch(0.52 0.1 150);
+  --success-soft: oklch(0.52 0.1 150 / 0.13);
+  --warning: oklch(0.55 0.115 62);   /* "due / overdue" — warm, not red */
+  --warning-soft: oklch(0.62 0.12 65 / 0.16);
+  --danger: oklch(0.535 0.16 28);    /* destructive only */
+  --danger-soft: oklch(0.535 0.16 28 / 0.12);
+
+  /* Floating glass surfaces (header + tab bar) */
+  --glass-bg: color-mix(in oklch, var(--surface) 72%, transparent);
+  --glass-bg-opaque: color-mix(in oklch, var(--surface) 92%, transparent);
+  --glass-border: oklch(1 0 0 / 0.55);
+  --glass-highlight: oklch(1 0 0 / 0.7);
+
+  /* Tinted, soft shadows (carry the warm hue, low opacity) */
+  --shadow-color: 30 25% 30%;
+  --shadow-sm: 0 1px 2px oklch(0.35 0.03 60 / 0.07), 0 1px 1px oklch(0.35 0.03 60 / 0.04);
+  --shadow-md: 0 2px 6px oklch(0.35 0.03 60 / 0.06), 0 8px 20px oklch(0.35 0.03 60 / 0.08);
+  --shadow-lg: 0 10px 34px oklch(0.3 0.03 60 / 0.14), 0 2px 8px oklch(0.3 0.03 60 / 0.06);
+  --inner-highlight: inset 0 1px 0 oklch(1 0 0 / 0.6);
+
+  /* Radii */
+  --radius-row: 1rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(0.205 0.014 62);
+    --surface: oklch(0.246 0.016 62);
+    --surface-2: oklch(0.285 0.017 62);
+    --surface-3: oklch(0.325 0.018 62);
+    --border: oklch(0.34 0.015 62);
+    --border-strong: oklch(0.43 0.016 62);
+
+    --ink: oklch(0.95 0.01 76);
+    --muted: oklch(0.74 0.014 70);
+    --faint: oklch(0.58 0.014 65);
+
+    --accent: oklch(0.72 0.115 56);
+    --accent-hover: oklch(0.78 0.115 56);
+    --accent-ink: oklch(0.22 0.03 58);
+    --accent-soft: oklch(0.72 0.115 56 / 0.18);
+    --accent-ring: oklch(0.72 0.115 56 / 0.4);
+
+    --amber: oklch(0.82 0.12 78);
+    --amber-soft: oklch(0.82 0.12 78 / 0.18);
+
+    --success: oklch(0.74 0.12 152);
+    --success-soft: oklch(0.74 0.12 152 / 0.16);
+    --warning: oklch(0.8 0.12 72);
+    --warning-soft: oklch(0.8 0.12 72 / 0.16);
+    --danger: oklch(0.7 0.16 28);
+    --danger-soft: oklch(0.7 0.16 28 / 0.18);
+
+    --glass-bg: color-mix(in oklch, var(--surface) 66%, transparent);
+    --glass-bg-opaque: color-mix(in oklch, var(--surface) 90%, transparent);
+    --glass-border: oklch(1 0 0 / 0.1);
+    --glass-highlight: oklch(1 0 0 / 0.08);
+
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+    --shadow-md: 0 2px 6px oklch(0 0 0 / 0.35), 0 8px 20px oklch(0 0 0 / 0.4);
+    --shadow-lg: 0 10px 34px oklch(0 0 0 / 0.5), 0 2px 8px oklch(0 0 0 / 0.3);
+    --inner-highlight: inset 0 1px 0 oklch(1 0 0 / 0.06);
+  }
+}
+
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-glass-border: var(--glass-border);
+
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  --radius-row: var(--radius-row);
+  --radius-card: var(--radius-card);
+  --radius-sheet: var(--radius-sheet);
+
+  --shadow-soft: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --shadow-floating: var(--shadow-lg);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Liquid Glass navigation surface --------------------------------------------
-   A translucent functional layer that floats above content: it blurs and
-   saturates whatever scrolls beneath it (the "scroll edge effect" that keeps
-   controls legible). Borders/radius/shadow are applied per element. Degrades to
-   an opaque surface when the user asks for reduced transparency, and on engines
-   without backdrop-filter support. */
+/* Tabular figures for all data: doses, times, counts read as aligned columns. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Display family for brand moments only (wordmark, greeting). */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+/* Visible, on-brand focus ring for keyboard users. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-ring);
+  border-radius: 0.5rem;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   Liquid Glass — translucent functional surface for the header + tab bar.
+   Blurs/saturates content beneath it; degrades to opaque when transparency is
+   reduced or backdrop-filter is unsupported.
+   ------------------------------------------------------------------------- */
 .glass {
-  background-color: color-mix(in srgb, white 70%, transparent);
+  background-color: var(--glass-bg);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .glass {
-    background-color: color-mix(in srgb, white 92%, transparent);
+    background-color: var(--glass-bg-opaque);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .glass {
-    background-color: #fff;
+    background-color: var(--glass-bg-opaque);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
 }
 
-/* Shared form control style used across the app. */
+/* ---------------------------------------------------------------------------
+   Form controls — one consistent vocabulary across the app.
+   ------------------------------------------------------------------------- */
 .input {
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-slate-300);
-  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.625rem 0.875rem;
   outline: none;
-  background: #fff;
+  transition: border-color 0.18s var(--ease-out-quint),
+    box-shadow 0.18s var(--ease-out-quint), background-color 0.18s;
+}
+.input::placeholder {
+  color: var(--muted);
+}
+.input:hover {
+  border-color: var(--border-strong);
 }
 .input:focus {
-  border-color: var(--color-teal-500);
-  box-shadow: 0 0 0 2px var(--color-teal-200);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+/* Date/time pickers adopt the theme. */
+.input::-webkit-calendar-picker-indicator {
+  filter: grayscale(1);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+/* A medication/dose list row — one consistent surface affordance. */
+.dose-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-row);
+  background: var(--surface);
+  padding: 0.875rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Tactile press feedback for tappable surfaces.
+   ------------------------------------------------------------------------- */
+.tap {
+  transition: transform 0.18s var(--ease-out-quint),
+    background-color 0.18s var(--ease-out-quint), box-shadow 0.18s, opacity 0.18s;
+}
+.tap:active {
+  transform: scale(0.97);
+}
+
+/* ---------------------------------------------------------------------------
+   Entrance motion — a gentle staggered fade-up for lists on load. Enhances an
+   already-visible default (content is visible without JS); honors reduced motion.
+   ------------------------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.5s var(--ease-out-quint) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .tap:active {
+    transform: none;
+  }
 }

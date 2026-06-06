@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MedType, MedicationWithSchedules } from "@/lib/types";
+import { PlusIcon, XIcon } from "./icons";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"]; // index = 0..6 (Sun..Sat)
+
+const TYPES: { value: MedType; label: string; hint: string }[] = [
+  { value: "fixed", label: "Fixed", hint: "Same dose at set times each day." },
+  { value: "variable", label: "Variable", hint: "Dose changes day to day; set it when you give it." },
+  { value: "as_needed", label: "As needed", hint: "No schedule — give it whenever it's needed." },
+];
 
 interface Row {
   time: string;
@@ -32,6 +39,7 @@ export function MedicationForm({
   const [pending, setPending] = useState(false);
 
   const showSchedule = type !== "as_needed";
+  const typeHint = TYPES.find((t) => t.value === type)!.hint;
 
   function updateRow(i: number, patch: Partial<Row>) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -53,6 +61,7 @@ export function MedicationForm({
 
   async function onSubmit(formData: FormData) {
     setPending(true);
+    formData.set("type", type);
     formData.set(
       "schedules",
       JSON.stringify(
@@ -68,80 +77,89 @@ export function MedicationForm({
   }
 
   return (
-    <form action={onSubmit} className="flex flex-col gap-4">
-      <Field label="Name">
-        <input
-          name="name"
-          required
-          defaultValue={med?.name}
-          className="input"
-          placeholder="e.g. Apoquel"
-        />
-      </Field>
-
-      <Field label="Type">
-        <select
-          name="type"
-          value={type}
-          onChange={(e) => setType(e.target.value as MedType)}
-          className="input"
-        >
-          <option value="fixed">Fixed — same dose at set times</option>
-          <option value="variable">Variable — dose changes by day</option>
-          <option value="as_needed">As needed — no schedule</option>
-        </select>
-      </Field>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Unit">
-          <input name="unit" defaultValue={med?.unit ?? "pill"} className="input" />
+    <form action={onSubmit} className="flex flex-col gap-5">
+      <Group>
+        <Field label="Name">
+          <input name="name" required defaultValue={med?.name} className="input" placeholder="e.g. Apoquel" />
         </Field>
-        <Field label={type === "variable" ? "Default dose" : "Dose"}>
-          <input
-            name="default_dose"
-            type="number"
-            step="any"
-            defaultValue={med?.default_dose ?? ""}
-            className="input"
-            placeholder="e.g. 1"
+
+        <Field label="Type">
+          <div role="radiogroup" className="grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1">
+            {TYPES.map((t) => {
+              const active = type === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setType(t.value)}
+                  className={`tap rounded-full py-1.5 text-[0.8125rem] font-medium ${
+                    active ? "bg-surface text-ink shadow-[var(--shadow-sm)]" : "text-muted"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[0.8125rem] text-muted">{typeHint}</p>
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Unit">
+            <input name="unit" defaultValue={med?.unit ?? "pill"} className="input" />
+          </Field>
+          <Field label={type === "variable" ? "Default dose" : "Dose"}>
+            <input
+              name="default_dose"
+              type="number"
+              step="any"
+              defaultValue={med?.default_dose ?? ""}
+              className="input tnum"
+              placeholder="e.g. 1"
+            />
+          </Field>
+        </div>
+
+        <Field label="Instructions (optional)">
+          <textarea
+            name="instructions"
+            defaultValue={med?.instructions ?? ""}
+            rows={2}
+            className="input resize-none"
+            placeholder="With food, etc."
           />
         </Field>
-      </div>
-
-      <Field label="Instructions (optional)">
-        <textarea
-          name="instructions"
-          defaultValue={med?.instructions ?? ""}
-          rows={2}
-          className="input"
-          placeholder="With food, etc."
-        />
-      </Field>
+      </Group>
 
       {showSchedule && (
         <div>
-          <p className="mb-1 text-sm font-medium text-slate-600">Times</p>
-          <div className="flex flex-col gap-3">
+          <p className="mb-2 px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted">
+            Times
+          </p>
+          <div className="flex flex-col gap-2.5">
             {rows.map((row, i) => (
-              <div key={i} className="rounded-lg bg-slate-50 p-3">
+              <div key={i} className="rounded-row bg-surface p-3.5 shadow-[var(--shadow-sm)]">
                 <div className="flex items-center gap-2">
                   <input
                     type="time"
                     value={row.time}
                     onChange={(e) => updateRow(i, { time: e.target.value })}
-                    className="input flex-1"
+                    className="input tnum flex-1"
                   />
                   {rows.length > 1 && (
                     <button
                       type="button"
                       onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}
-                      className="px-2 text-slate-400"
+                      aria-label="Remove time"
+                      className="tap grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-danger"
                     >
-                      ✕
+                      <XIcon className="size-4" />
                     </button>
                   )}
                 </div>
-                <div className="mt-2 flex gap-1">
+                <div className="mt-3 flex justify-between gap-1">
                   {DAY_LABELS.map((d, day) => {
                     const on = row.days.length === 0 || row.days.includes(day);
                     return (
@@ -149,8 +167,9 @@ export function MedicationForm({
                         key={day}
                         type="button"
                         onClick={() => toggleDay(i, day)}
-                        className={`h-7 w-7 rounded-full text-xs ${
-                          on ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-500"
+                        aria-pressed={on}
+                        className={`tap size-8 rounded-full text-[0.8125rem] font-medium ${
+                          on ? "bg-accent text-accent-ink" : "bg-surface-2 text-muted"
                         }`}
                       >
                         {d}
@@ -158,7 +177,7 @@ export function MedicationForm({
                     );
                   })}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-2 text-[0.75rem] text-muted">
                   {row.days.length === 0 ? "Every day" : "Selected days only"}
                 </p>
               </div>
@@ -167,9 +186,10 @@ export function MedicationForm({
           <button
             type="button"
             onClick={() => setRows((rs) => [...rs, { time: "20:00", days: [] }])}
-            className="mt-2 text-sm font-medium text-teal-700"
+            className="tap mt-2.5 inline-flex items-center gap-1.5 px-1 text-sm font-semibold text-accent"
           >
-            + Add another time
+            <PlusIcon className="size-4" />
+            Add another time
           </button>
         </div>
       )}
@@ -177,7 +197,7 @@ export function MedicationForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-teal-600 px-4 py-3 font-medium text-white hover:bg-teal-700 disabled:opacity-60"
+        className="tap rounded-full bg-accent py-3.5 font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
       >
         {pending ? "Saving…" : med ? "Save changes" : "Add medication"}
       </button>
@@ -185,10 +205,18 @@ export function MedicationForm({
   );
 }
 
+function Group({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-card bg-surface p-4 shadow-[var(--shadow-sm)]">
+      {children}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm font-medium text-slate-600">{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[0.8125rem] font-medium text-muted">{label}</span>
       {children}
     </label>
   );

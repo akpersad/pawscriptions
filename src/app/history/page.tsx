@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, getMedicationsWithSchedules } from "@/lib/data";
 import { appTimezone } from "@/lib/env";
+import { ClockIcon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function HistoryPage({
 
   return (
     <AppShell title="History">
-      <form className="mb-4 flex flex-col gap-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-100">
+      <form className="mb-6 flex flex-col gap-2.5 rounded-card bg-surface p-3.5 shadow-[var(--shadow-sm)]">
         <select name="med" defaultValue={med ?? ""} className="input">
           <option value="">All medications</option>
           {meds.map((m) => (
@@ -46,40 +47,51 @@ export default async function HistoryPage({
             </option>
           ))}
         </select>
-        <div className="grid grid-cols-2 gap-2">
-          <input type="date" name="from" defaultValue={from ?? ""} className="input" />
-          <input type="date" name="to" defaultValue={to ?? ""} className="input" />
+        <div className="grid grid-cols-2 gap-2.5">
+          <input type="date" name="from" defaultValue={from ?? ""} className="input tnum" />
+          <input type="date" name="to" defaultValue={to ?? ""} className="input tnum" />
         </div>
-        <button className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white">
+        <button className="tap rounded-full bg-ink px-3 py-2.5 text-sm font-semibold text-bg hover:opacity-90">
           Apply filters
         </button>
       </form>
 
       {logs.length === 0 ? (
-        <p className="text-slate-500">No doses logged for this filter.</p>
+        <div className="mt-6 flex flex-col items-center rounded-card bg-surface px-6 py-12 text-center" style={{ boxShadow: "var(--shadow-md)" }}>
+          <span className="grid size-14 place-items-center rounded-full bg-surface-2 text-faint">
+            <ClockIcon className="size-7" />
+          </span>
+          <p className="mt-4 font-medium text-ink">No doses logged</p>
+          <p className="mt-1 max-w-[15rem] text-sm text-muted">
+            Doses you give will appear here, newest first.
+          </p>
+        </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6">
           {[...groups.entries()].map(([date, items]) => (
             <section key={date}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h2 className="mb-2 px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted">
                 {date}
               </h2>
-              <ul className="flex flex-col gap-2">
-                {items.map((log) => (
+              <ul className="overflow-hidden rounded-card bg-surface shadow-[var(--shadow-sm)]">
+                {items.map((log, i) => (
                   <li
                     key={log.id}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-100"
+                    className={`flex items-start gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}
                   >
-                    <div>
-                      <p className="font-medium">{nameOf.get(log.medication_id) ?? "—"}</p>
-                      {log.notes && <p className="text-xs text-slate-400">{log.notes}</p>}
+                    <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink">{nameOf.get(log.medication_id) ?? "—"}</p>
+                      {log.notes && <p className="mt-0.5 text-[0.8125rem] text-muted">{log.notes}</p>}
+                      {log.given_by && (
+                        <p className="mt-0.5 text-[0.75rem] text-faint">by {log.given_by}</p>
+                      )}
                     </div>
-                    <div className="text-right text-slate-500">
-                      <p>
-                        {DateTime.fromISO(log.given_at).setZone(tz).toFormat("h:mm a")}
-                        {log.dose_amount != null && ` · ${log.dose_amount} ${log.unit ?? ""}`}
-                      </p>
-                      {log.given_by && <p className="text-xs text-slate-400">by {log.given_by}</p>}
+                    <div className="tnum shrink-0 text-right text-[0.8125rem] text-muted">
+                      <p>{DateTime.fromISO(log.given_at).setZone(tz).toFormat("h:mm a")}</p>
+                      {log.dose_amount != null && (
+                        <p className="text-faint">{log.dose_amount} {log.unit ?? ""}</p>
+                      )}
                     </div>
                   </li>
                 ))}
