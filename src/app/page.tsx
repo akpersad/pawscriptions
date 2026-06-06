@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DateTime } from "luxon";
 import { AppShell } from "@/components/AppShell";
 import { GiveDose } from "@/components/GiveDose";
+import { AdHocDose } from "@/components/AdHocDose";
 import { UndoDose } from "@/components/UndoDose";
 import { CheckIcon, PawIcon, PlusIcon } from "@/components/icons";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/lib/data";
 import { buildDoseSlots, nowInAppTz } from "@/lib/schedule";
 import { appTimezone } from "@/lib/env";
-import type { DoseSlot } from "@/lib/types";
+import type { DoseLog, DoseSlot, Medication } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,30 @@ export default async function TodayPage() {
   ]);
 
   const slots = buildDoseSlots(meds, logs, plans, today);
-  const asNeeded = meds.filter((m) => m.type === "as_needed");
+  // One-off ad-hoc meds are excluded from the regular as-needed section.
+  const asNeeded = meds.filter((m) => m.type === "as_needed" && !m.is_one_off);
   const given = slots.filter((s) => s.log);
   const outstanding = slots.filter((s) => !s.log);
   const due = outstanding.filter((s) => DateTime.fromISO(s.scheduledFor) <= today);
   const later = outstanding.filter((s) => DateTime.fromISO(s.scheduledFor) > today);
+
+  // "Extra today": unscheduled doses not represented by the as-needed section —
+  // i.e. one-off doses and extra doses of scheduled meds.
+  const medById = new Map<string, Medication>(meds.map((m) => [m.id, m]));
+  const asNeededIds = new Set(asNeeded.map((m) => m.id));
+  const extra = logs
+    .filter((l) => l.scheduled_for == null && !asNeededIds.has(l.medication_id))
+    .sort((a, b) => b.given_at.localeCompare(a.given_at));
+  // Known meds offered in the one-off picker (active, not themselves one-offs).
+  const knownMeds = meds
+    .filter((m) => !m.is_one_off)
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      unit: m.unit,
+      strength: m.strength,
+      defaultDose: m.default_dose,
+    }));
 
   const hour = today.hour;
   const greeting =
@@ -103,6 +123,18 @@ export default async function TodayPage() {
           })}
         </Section>
       )}
+
+      {extra.length > 0 && (
+        <Section title="Extra today">
+          {extra.map((log) => (
+            <ExtraRow key={log.id} log={log} med={medById.get(log.medication_id)} />
+          ))}
+        </Section>
+      )}
+
+      <div className="mt-2">
+        <AdHocDose meds={knownMeds} />
+      </div>
     </AppShell>
   );
 }
@@ -274,6 +306,51 @@ function GivenRow({ slot: s }: { slot: DoseSlot }) {
         body
       )}
       {log && <UndoDose logId={log.id} />}
+    </li>
+  );
+}
+
+function ExtraRow({ log, med }: { log: DoseLog; med?: Medication }) {
+  const given = DateTime.fromISO(log.given_at).setZone(appTimezone());
+  const name = med?.name ?? "—";
+  const unit = log.unit ?? med?.unit ?? "";
+  const body = (
+    <>
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
+        <CheckIcon className="size-[1.15rem]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">
+          {name}
+          {med?.strength && (
+            <span className="ml-1.5 text-[0.8125rem] font-normal text-muted">{med.strength}</span>
+          )}
+        </p>
+        <p className="tnum mt-0.5 truncate text-[0.8125rem] text-muted">
+          {time(log.given_at)}
+          {log.dose_amount != null && ` · ${log.dose_amount} ${unit}`}
+          {log.given_by && ` · ${log.given_by}`}
+        </p>
+      </div>
+    </>
+  );
+  return (
+    <li className="dose-row">
+      <GiveDose
+        medicationId={log.medication_id}
+        medicationName={name}
+        defaultDose={log.dose_amount}
+        unit={unit}
+        strength={med?.strength}
+        editLogId={log.id}
+        initialDose={log.dose_amount}
+        initialGivenBy={log.given_by}
+        initialNotes={log.notes}
+        initialDate={given.toISODate()!}
+        initialTime={given.toFormat("HH:mm")}
+        trigger={body}
+      />
+      <UndoDose logId={log.id} />
     </li>
   );
 }

@@ -11,11 +11,14 @@ import type {
 } from "./types";
 
 export async function getMedicationsWithSchedules(
-  opts: { activeOnly?: boolean } = {},
+  opts: { activeOnly?: boolean; includeOneOff?: boolean } = {},
 ): Promise<MedicationWithSchedules[]> {
   const supabase = getSupabase();
   let medQuery = supabase.from("medications").select("*").order("name");
   if (opts.activeOnly) medQuery = medQuery.eq("active", true);
+  // Ad-hoc one-off meds are hidden from management lists/pickers by default;
+  // callers that need them (Today, history name lookup) opt in.
+  if (opts.includeOneOff === false) medQuery = medQuery.eq("is_one_off", false);
 
   const [{ data: meds, error: medErr }, { data: schedules, error: schErr }] =
     await Promise.all([

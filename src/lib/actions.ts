@@ -158,6 +158,50 @@ export async function logDose(formData: FormData) {
   revalidatePath("/history");
 }
 
+/**
+ * Log a dose that isn't on the regular schedule. Either references a known med
+ * (`medication_id`) or, when a free-typed `name` is given, auto-creates a hidden
+ * `as_needed` med (`is_one_off`) so the dose has something to attribute to.
+ */
+export async function logAdHocDose(formData: FormData) {
+  const supabase = getSupabase();
+  let medicationId = String(formData.get("medication_id") ?? "").trim();
+  const unit = String(formData.get("unit") ?? "").trim() || "pill";
+
+  if (!medicationId) {
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) throw new Error("A medication name is required.");
+    const { data, error } = await supabase
+      .from("medications")
+      .insert({
+        name,
+        type: "as_needed",
+        unit,
+        strength: String(formData.get("strength") ?? "").trim() || null,
+        active: true,
+        is_one_off: true,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    medicationId = data.id;
+  }
+
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
+  const { error } = await supabase.from("dose_logs").insert({
+    medication_id: medicationId,
+    scheduled_for: null,
+    ...(givenAt ? { given_at: givenAt } : {}),
+    dose_amount: numOrNull(formData.get("dose_amount")),
+    unit,
+    given_by: String(formData.get("given_by") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  });
+  if (error) throw error;
+  revalidatePath("/");
+  revalidatePath("/history");
+}
+
 /** Edit an already-logged dose (amount, time, who gave it, notes). */
 export async function editDose(logId: string, formData: FormData) {
   const supabase = getSupabase();

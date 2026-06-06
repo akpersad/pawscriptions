@@ -9,6 +9,7 @@ export interface Medication {
   strength: string | null; // optional label, e.g. "25 mg"
   instructions: string | null;
   active: boolean;
+  is_one_off: boolean; // ad-hoc med from a one-off dose; hidden from lists/pickers
   created_at: string;
 }
 

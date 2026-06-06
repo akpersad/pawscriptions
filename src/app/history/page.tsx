@@ -41,11 +41,13 @@ export default async function HistoryPage({
       <form className="mb-6 flex flex-col gap-2.5 rounded-card bg-surface p-3.5 shadow-[var(--shadow-sm)]">
         <select name="med" defaultValue={med ?? ""} className="input">
           <option value="">All medications</option>
-          {meds.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
+          {meds
+            .filter((m) => !m.is_one_off)
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
         </select>
         <div className="grid grid-cols-2 gap-2.5">
           <input type="date" name="from" defaultValue={from ?? ""} className="input tnum min-w-0" />

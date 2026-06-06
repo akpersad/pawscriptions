@@ -24,7 +24,7 @@ function scheduleSummary(times: string[]): string {
 }
 
 export default async function MedicationsPage() {
-  const meds = await getMedicationsWithSchedules();
+  const meds = await getMedicationsWithSchedules({ includeOneOff: false });
 
   return (
     <AppShell
