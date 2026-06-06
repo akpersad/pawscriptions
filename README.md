@@ -88,9 +88,12 @@ external scheduler hitting a protected endpoint.
    ```
    https://<project>.vercel.app/api/cron/reminders?secret=YOUR_CRON_SECRET
    ```
-3. That endpoint figures out which scheduled doses are due *now* (in `APP_TIMEZONE`),
-   skips any already given or already notified, and sends a Web Push to every subscribed
-   device. The `notifications_sent` table prevents duplicate buzzes.
+3. That endpoint figures out which scheduled doses are due (in `APP_TIMEZONE`) — firing
+   each med's reminder at its dose time minus its **Remind me** lead (set per med on the
+   form), skipping any already given or already notified, and sending a Web Push to every
+   subscribed device. The `notifications_sent` table prevents duplicate buzzes. Meds due at
+   the same time are combined into a single push whose wording scales with how many are due
+   (one med's name, two names, or "<dog> has N meds due" — dog name from `APP_DOG_NAME`).
 
 ## 6. Enable notifications on each iPhone
 
@@ -134,6 +137,23 @@ project's ref. To use it:
   just type the actual amount when you log the dose.
 - **As needed** — no schedule; a “Give now” button logs it whenever you give it.
 
+## Logging doses
+
+- **Time given** is editable — log the *actual* time, not just when you opened the app.
+- **Who gave it** is Andrew / Cindy / Other (Other lets you type a name).
+- Tap an already-given dose on **Today** to edit its amount, time, giver, or notes.
+- **Log a one-off dose** records something off-schedule: pick a known med or type a brand-new
+  one (it's saved as a hidden as-needed med so it doesn't clutter your list).
+- A med's optional **strength** (e.g. "25 mg") shows wherever the med appears.
+- On **History**, tap a med's name for its own page: a running dose log plus 7-day / 30-day /
+  all-time counts.
+
+## Adding a medication
+
+The new-medication form has a **Scan label** button: it photographs a printed label and reads
+it **on your device** with Tesseract.js (OCR), then prefills name / strength / dose / unit /
+schedule for you to review and correct before saving. The photo is never uploaded or stored.
+
 ## Project layout
 
 ```
@@ -143,14 +163,22 @@ src/
     auth.ts                # session cookie signing/verify (jose)
     supabase.ts            # server-only service-role client
     data.ts                # all DB reads
-    actions.ts             # server actions (med CRUD, dose logging)
-    schedule.ts            # timezone-aware "what's due" computation (luxon)
+    actions.ts             # server actions (med CRUD; logDose/editDose/logAdHocDose/undoDose)
+    schedule.ts            # timezone-aware "what's due" + reminder fire times (luxon)
+    parseLabel.ts          # OCR text → medication fields (client-safe heuristics)
     push.ts                # Web Push sender (web-push)
     types.ts, env.ts
+  components/
+    GiveDose.tsx           # log/edit a dose (bottom sheet)
+    AdHocDose.tsx          # log a one-off / off-schedule dose
+    GiverField.tsx         # who-gave-it picker (Andrew / Cindy / Other)
+    MedicationForm.tsx     # add/edit med
+    ScanLabel.tsx          # client-side label OCR (tesseract.js, lazy-loaded)
+    ...                    # AppShell, BottomNav, icons, etc.
   app/
     page.tsx               # Today
     medications/           # list + new + [id] edit
-    history/               # audit
+    history/               # audit feed + [medId] per-med detail
     settings/              # push controls + logout
     login/                 # passphrase gate
     api/cron/reminders/    # scheduled reminder sender (CRON_SECRET)
@@ -161,4 +189,5 @@ public/sw.js               # service worker (install + push handling)
 supabase/schema.sql        # database schema
 ```
 
-See [HANDOFF.md](HANDOFF.md) for current status and next steps.
+See [HANDOFF.md](HANDOFF.md) for current status, and [FUTURE_FEATURES.md](FUTURE_FEATURES.md)
+for deferred ideas (supply tracking, skip-with-reason, vet export, and more).
