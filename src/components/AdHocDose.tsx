@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { logAdHocDose } from "@/lib/actions";
+import { GiverField } from "./GiverField";
 import { MinusIcon, PlusIcon } from "./icons";
 
 const GIVER_KEY = "pawscriptions_giver";
@@ -238,15 +239,7 @@ export function AdHocDose({ meds }: { meds: KnownMed[] }) {
               />
             </div>
 
-            <label className="mb-2 block">
-              <span className="sr-only">Given by</span>
-              <input
-                value={givenBy}
-                onChange={(e) => setGivenBy(e.target.value)}
-                placeholder="Given by (name)"
-                className="input"
-              />
-            </label>
+            <GiverField initial={givenBy} onChange={setGivenBy} />
             <label className="mb-4 block">
               <span className="sr-only">Notes</span>
               <input
