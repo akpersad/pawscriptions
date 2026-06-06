@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { DateTime } from "luxon";
 import { getSupabase } from "./supabase";
+import { appTimezone } from "./env";
 import type { MedType } from "./types";
 
 interface ScheduleInput {
@@ -29,6 +31,23 @@ function numOrNull(v: FormDataEntryValue | null): number | null {
   if (v == null || String(v).trim() === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Build a UTC ISO timestamp from a wall-clock date ("YYYY-MM-DD") and time
+ * ("HH:MM") entered by the user, interpreting them in APP_TIMEZONE (the dog's
+ * local time) — not server-local time. Returns null if either is missing/invalid,
+ * so the caller can fall back to the DB `now()` default.
+ */
+function buildGivenAt(
+  date: FormDataEntryValue | null,
+  time: FormDataEntryValue | null,
+): string | null {
+  const d = String(date ?? "").trim();
+  const t = String(time ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{2}:\d{2}/.test(t)) return null;
+  const dt = DateTime.fromISO(`${d}T${t.slice(0, 5)}`, { zone: appTimezone() });
+  return dt.isValid ? dt.toUTC().toISO() : null;
 }
 
 async function replaceSchedules(medicationId: string, schedules: ScheduleInput[]) {
@@ -120,9 +139,12 @@ export async function deleteMedication(id: string) {
 export async function logDose(formData: FormData) {
   const supabase = getSupabase();
   const scheduledFor = String(formData.get("scheduled_for") ?? "").trim();
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
   const { error } = await supabase.from("dose_logs").insert({
     medication_id: String(formData.get("medication_id")),
     scheduled_for: scheduledFor || null,
+    // When the user noted a time, honor it (in app tz); else let the DB stamp now().
+    ...(givenAt ? { given_at: givenAt } : {}),
     dose_amount: numOrNull(formData.get("dose_amount")),
     unit: String(formData.get("unit") ?? "").trim() || null,
     given_by: String(formData.get("given_by") ?? "").trim() || null,

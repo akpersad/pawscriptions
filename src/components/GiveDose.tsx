@@ -6,6 +6,16 @@ import { MinusIcon, PlusIcon } from "./icons";
 
 const GIVER_KEY = "pawscriptions_giver";
 
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Current local wall-clock date/time, for prefilling the "given at" fields. */
+function nowParts() {
+  const d = new Date();
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 export function GiveDose({
   medicationId,
   medicationName,
@@ -27,12 +37,17 @@ export function GiveDose({
   const [dose, setDose] = useState<string>(defaultDose != null ? String(defaultDose) : "");
   const [givenBy, setGivenBy] = useState("");
   const [notes, setNotes] = useState("");
+  const [givenDate, setGivenDate] = useState("");
+  const [givenTime, setGivenTime] = useState("");
 
   // Open/close with an enter/exit transition; lock body scroll while open.
   function openSheet() {
     setDose(defaultDose != null ? String(defaultDose) : "");
     setNotes("");
     setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
+    const { date, time } = nowParts();
+    setGivenDate(date);
+    setGivenTime(time);
     setOpen(true);
   }
   function closeSheet() {
@@ -68,6 +83,10 @@ export function GiveDose({
     if (scheduledFor) fd.set("scheduled_for", scheduledFor);
     fd.set("unit", unit);
     if (dose !== "") fd.set("dose_amount", dose);
+    if (givenDate && givenTime) {
+      fd.set("given_date", givenDate);
+      fd.set("given_time", givenTime);
+    }
     if (givenBy) {
       fd.set("given_by", givenBy);
       localStorage.setItem(GIVER_KEY, givenBy);
@@ -131,6 +150,19 @@ export function GiveDose({
                   <PlusIcon className="size-4" />
                 </button>
               </div>
+            </div>
+
+            {/* Time given — defaults to now, but editable so you can log the
+                actual time rather than when you happened to open the app. */}
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-row bg-surface-2 p-3">
+              <span className="text-sm font-medium text-muted">Time given</span>
+              <input
+                type="time"
+                value={givenTime}
+                onChange={(e) => setGivenTime(e.target.value)}
+                aria-label="Time given"
+                className="input tnum w-auto"
+              />
             </div>
 
             <label className="mb-2 block">
