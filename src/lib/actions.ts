@@ -49,10 +49,12 @@ async function replaceSchedules(medicationId: string, schedules: ScheduleInput[]
 export async function createMedication(formData: FormData) {
   const supabase = getSupabase();
   const type = String(formData.get("type")) as MedType;
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Medication name is required.");
   const { data, error } = await supabase
     .from("medications")
     .insert({
-      name: String(formData.get("name") ?? "").trim(),
+      name,
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),
@@ -73,10 +75,12 @@ export async function createMedication(formData: FormData) {
 export async function updateMedication(id: string, formData: FormData) {
   const supabase = getSupabase();
   const type = String(formData.get("type")) as MedType;
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Medication name is required.");
   const { error } = await supabase
     .from("medications")
     .update({
-      name: String(formData.get("name") ?? "").trim(),
+      name,
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),

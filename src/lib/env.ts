@@ -9,5 +9,5 @@ export function requireEnv(name: string): string {
 
 /** The IANA timezone all dose times are interpreted in. */
 export function appTimezone(): string {
-  return process.env.APP_TIMEZONE || "America/Toronto";
+  return process.env.APP_TIMEZONE || "America/New_York";
 }
