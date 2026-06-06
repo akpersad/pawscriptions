@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { DateTime } from "luxon";
 import { AppShell } from "@/components/AppShell";
 import { getHistory, getMedicationsWithSchedules } from "@/lib/data";
 import { appTimezone } from "@/lib/env";
-import { ClockIcon } from "@/components/icons";
+import { ChevronRightIcon, ClockIcon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +84,13 @@ export default async function HistoryPage({
                   >
                     <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{nameOf.get(log.medication_id) ?? "—"}</p>
+                      <Link
+                        href={`/history/${log.medication_id}`}
+                        className="tap inline-flex max-w-full items-center gap-1 font-medium text-ink hover:text-accent"
+                      >
+                        <span className="truncate">{nameOf.get(log.medication_id) ?? "—"}</span>
+                        <ChevronRightIcon className="size-4 shrink-0 text-faint" />
+                      </Link>
                       {log.notes && <p className="mt-0.5 text-[0.8125rem] text-muted">{log.notes}</p>}
                       {log.given_by && (
                         <p className="mt-0.5 text-[0.75rem] text-faint">by {log.given_by}</p>
