@@ -200,6 +200,23 @@ export function MedicationForm({
             <PlusIcon className="size-4" />
             Add another time
           </button>
+
+          <div className="mt-4">
+            <Field label="Remind me">
+              <select
+                name="reminder_lead_minutes"
+                defaultValue={String(med?.reminder_lead_minutes ?? 0)}
+                className="input"
+              >
+                <option value="0">At dose time</option>
+                <option value="5">5 minutes before</option>
+                <option value="10">10 minutes before</option>
+                <option value="15">15 minutes before</option>
+                <option value="30">30 minutes before</option>
+                <option value="60">1 hour before</option>
+              </select>
+            </Field>
+          </div>
         </div>
       )}
 

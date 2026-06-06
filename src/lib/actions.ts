@@ -79,6 +79,8 @@ export async function createMedication(formData: FormData) {
       default_dose: numOrNull(formData.get("default_dose")),
       strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
+      reminder_lead_minutes:
+        type === "as_needed" ? 0 : numOrNull(formData.get("reminder_lead_minutes")) ?? 0,
       active: true,
     })
     .select("id")
@@ -106,6 +108,8 @@ export async function updateMedication(id: string, formData: FormData) {
       default_dose: numOrNull(formData.get("default_dose")),
       strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
+      reminder_lead_minutes:
+        type === "as_needed" ? 0 : numOrNull(formData.get("reminder_lead_minutes")) ?? 0,
     })
     .eq("id", id);
   if (error) throw error;

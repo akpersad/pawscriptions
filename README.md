@@ -70,6 +70,7 @@ by the passphrase.
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same value as `VAPID_PUBLIC_KEY`, exposed to the browser to subscribe |
 | `CRON_SECRET` | Shared secret the reminder cron must pass |
 | `APP_TIMEZONE` | IANA tz all dose times are interpreted in (e.g. `America/Toronto`) |
+| `APP_DOG_NAME` | _Optional._ Name used in reminder copy when several meds are due at once (defaults to `Bodhi`) |
 
 ## 4. Deploy to Vercel
 

@@ -85,10 +85,16 @@ export function buildDoseSlots(
   return slots;
 }
 
+/** The moment a slot's reminder should fire: dose time minus its lead. */
+export function reminderFireTime(slot: DoseSlot): DateTime {
+  const lead = slot.medication.reminder_lead_minutes ?? 0;
+  return DateTime.fromISO(slot.scheduledFor).minus({ minutes: lead });
+}
+
 /**
- * Slots that are "due now" for the reminder cron: their scheduled time has arrived
- * within the last `windowMinutes` and they haven't been given. Caller is responsible
- * for skipping any already in notifications_sent.
+ * Slots whose reminder is "due now" for the cron: their fire time (dose time
+ * minus the med's reminder lead) has arrived within the last `windowMinutes` and
+ * they haven't been given. Caller skips any already in notifications_sent.
  */
 export function dueNowSlots(
   slots: DoseSlot[],
@@ -97,8 +103,7 @@ export function dueNowSlots(
 ): DoseSlot[] {
   return slots.filter((s) => {
     if (s.log) return false; // already given
-    const slotTime = DateTime.fromISO(s.scheduledFor);
-    const minutesPast = now.diff(slotTime, "minutes").minutes;
+    const minutesPast = now.diff(reminderFireTime(s), "minutes").minutes;
     return minutesPast >= 0 && minutesPast < windowMinutes;
   });
 }

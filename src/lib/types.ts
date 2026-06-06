@@ -10,6 +10,7 @@ export interface Medication {
   instructions: string | null;
   active: boolean;
   is_one_off: boolean; // ad-hoc med from a one-off dose; hidden from lists/pickers
+  reminder_lead_minutes: number; // minutes before dose time to send the push (0 = at dose time)
   created_at: string;
 }
 
