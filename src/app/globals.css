@@ -240,6 +240,17 @@ body {
   opacity: 0.6;
   cursor: pointer;
 }
+/* WebKit (iOS Safari) gives date/time inputs a large intrinsic min-width and
+   its own widget sizing, so they refuse to shrink and overflow flex/grid
+   tracks. Reset the appearance and min-width so they behave like normal fields
+   and honor width:100% / 1fr columns. */
+.input[type="date"],
+.input[type="time"],
+.input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
 
 /* A medication/dose list row — one consistent surface affordance. */
 .dose-row {

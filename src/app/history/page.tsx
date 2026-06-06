@@ -48,8 +48,8 @@ export default async function HistoryPage({
           ))}
         </select>
         <div className="grid grid-cols-2 gap-2.5">
-          <input type="date" name="from" defaultValue={from ?? ""} className="input tnum" />
-          <input type="date" name="to" defaultValue={to ?? ""} className="input tnum" />
+          <input type="date" name="from" defaultValue={from ?? ""} className="input tnum min-w-0" />
+          <input type="date" name="to" defaultValue={to ?? ""} className="input tnum min-w-0" />
         </div>
         <button className="tap rounded-full bg-ink px-3 py-2.5 text-sm font-semibold text-bg hover:opacity-90">
           Apply filters
