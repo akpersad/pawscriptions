@@ -11,3 +11,8 @@ export function requireEnv(name: string): string {
 export function appTimezone(): string {
   return process.env.APP_TIMEZONE || "America/New_York";
 }
+
+/** The dog's name, used in reminder copy. */
+export function dogName(): string {
+  return process.env.APP_DOG_NAME || "Bodhi";
+}

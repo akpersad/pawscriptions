@@ -8,6 +8,8 @@ import {
 } from "@/lib/data";
 import { buildDoseSlots, dueNowSlots, nowInAppTz } from "@/lib/schedule";
 import { sendToAll } from "@/lib/push";
+import { dogName } from "@/lib/env";
+import type { DoseSlot } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -54,30 +56,63 @@ async function run(req: NextRequest) {
     ),
   );
 
-  let notified = 0;
+  // Claim each new slot first (unique constraint dedupes across concurrent runs),
+  // so a med is never notified twice. Only slots this run actually claimed get sent.
+  const claimed: DoseSlot[] = [];
   for (const slot of due) {
     const key = `${slot.medication.id}|${DateTime.fromISO(slot.scheduledFor).toMillis()}`;
     if (sentKeys.has(key)) continue;
-
-    // Claim the slot first (unique constraint dedupes across concurrent runs).
     const { error: claimErr } = await supabase.from("notifications_sent").insert({
       medication_id: slot.medication.id,
       scheduled_for: slot.scheduledFor,
     });
     if (claimErr) continue; // already claimed by a concurrent run
+    claimed.push(slot);
+  }
 
-    const dose =
-      slot.plannedDose != null ? ` (${slot.plannedDose} ${slot.medication.unit})` : "";
+  // Group claimed slots by their dose time so meds due together get one push.
+  const groups = new Map<string, DoseSlot[]>();
+  for (const slot of claimed) {
+    const k = DateTime.fromISO(slot.scheduledFor).toMillis().toString();
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(slot);
+  }
+
+  let notified = 0;
+  for (const [millis, group] of groups) {
     await sendToAll({
       title: "Pawscriptions",
-      body: `Time for ${slot.medication.name}${dose} — ${slot.timeLabel}`,
-      tag: key,
+      body: reminderBody(group),
+      tag: `due|${millis}`,
       url: "/",
     });
     notified++;
   }
 
-  return NextResponse.json({ checked: slots.length, due: due.length, sent: notified });
+  return NextResponse.json({
+    checked: slots.length,
+    due: due.length,
+    claimed: claimed.length,
+    sent: notified,
+  });
+}
+
+/**
+ * Reminder copy that scales with how many meds are due at the same time:
+ *  1 → the med (with dose); 2 → "Dog: A and B"; 3+ → "Dog has N meds due".
+ */
+function reminderBody(group: DoseSlot[]): string {
+  const timeLabel = group[0].timeLabel;
+  const dog = dogName();
+  if (group.length === 1) {
+    const s = group[0];
+    const dose = s.plannedDose != null ? ` (${s.plannedDose} ${s.medication.unit})` : "";
+    return `Time for ${s.medication.name}${dose} — ${timeLabel}`;
+  }
+  if (group.length === 2) {
+    return `${dog}: ${group[0].medication.name} and ${group[1].medication.name} — ${timeLabel}`;
+  }
+  return `${dog} has ${group.length} meds due — ${timeLabel}`;
 }
 
 export async function GET(req: NextRequest) {

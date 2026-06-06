@@ -6,8 +6,11 @@ export interface Medication {
   type: MedType;
   unit: string;
   default_dose: number | null;
+  strength: string | null; // optional label, e.g. "25 mg"
   instructions: string | null;
   active: boolean;
+  is_one_off: boolean; // ad-hoc med from a one-off dose; hidden from lists/pickers
+  reminder_lead_minutes: number; // minutes before dose time to send the push (0 = at dose time)
   created_at: string;
 }
 

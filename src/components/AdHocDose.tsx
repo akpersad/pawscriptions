@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { editDose, logDose } from "@/lib/actions";
+import { logAdHocDose } from "@/lib/actions";
 import { GiverField } from "./GiverField";
 import { MinusIcon, PlusIcon } from "./icons";
 
 const GIVER_KEY = "pawscriptions_giver";
 
 const pad = (n: number) => String(n).padStart(2, "0");
-/** Current local wall-clock date/time, for prefilling the "given at" fields. */
 function nowParts() {
   const d = new Date();
   return {
@@ -17,67 +16,48 @@ function nowParts() {
   };
 }
 
-export function GiveDose({
-  medicationId,
-  medicationName,
-  scheduledFor,
-  defaultDose,
-  unit,
-  strength,
-  label = "Give",
-  editLogId,
-  initialDose,
-  initialGivenBy,
-  initialNotes,
-  initialDate,
-  initialTime,
-  trigger,
-}: {
-  medicationId: string;
-  medicationName: string;
-  scheduledFor?: string;
-  defaultDose: number | null;
+export interface KnownMed {
+  id: string;
+  name: string;
   unit: string;
-  strength?: string | null;
-  label?: string;
-  /** When set, the sheet edits this existing dose log instead of creating one. */
-  editLogId?: string;
-  initialDose?: number | null;
-  initialGivenBy?: string | null;
-  initialNotes?: string | null;
-  initialDate?: string; // "YYYY-MM-DD" in app tz
-  initialTime?: string; // "HH:MM" in app tz
-  /** Custom trigger content; rendered as a full-width button. Falls back to the pill button. */
-  trigger?: React.ReactNode;
-}) {
-  const isEdit = editLogId != null;
+  strength: string | null;
+  defaultDose: number | null;
+}
+
+/**
+ * Log a dose that isn't on the regular schedule. Pick a known med or type a
+ * brand-new one-off (name/unit/strength). The dose is attributed to the chosen
+ * or freshly-created med via the logAdHocDose server action.
+ */
+export function AdHocDose({ meds }: { meds: KnownMed[] }) {
   const [open, setOpen] = useState(false);
   const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
-  const [dose, setDose] = useState<string>(defaultDose != null ? String(defaultDose) : "");
+
+  const [selectedId, setSelectedId] = useState(""); // "" = new one-off
+  const [name, setName] = useState("");
+  const [unit, setUnit] = useState("pill");
+  const [strength, setStrength] = useState("");
+  const [dose, setDose] = useState("");
   const [givenBy, setGivenBy] = useState("");
   const [notes, setNotes] = useState("");
   const [givenDate, setGivenDate] = useState("");
   const [givenTime, setGivenTime] = useState("");
 
-  // Open/close with an enter/exit transition; lock body scroll while open.
+  const isNew = selectedId === "";
+  const selected = meds.find((m) => m.id === selectedId);
+
   function openSheet() {
-    if (isEdit) {
-      // Prefill from the existing log so edits start from current values.
-      setDose(initialDose != null ? String(initialDose) : "");
-      setNotes(initialNotes ?? "");
-      setGivenBy(initialGivenBy ?? "");
-      const now = nowParts();
-      setGivenDate(initialDate || now.date);
-      setGivenTime(initialTime || now.time);
-    } else {
-      setDose(defaultDose != null ? String(defaultDose) : "");
-      setNotes("");
-      setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
-      const { date, time } = nowParts();
-      setGivenDate(date);
-      setGivenTime(time);
-    }
+    setSelectedId("");
+    setName("");
+    setUnit("pill");
+    setStrength("");
+    setDose("");
+    setNotes("");
+    setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
+    const { date, time } = nowParts();
+    setGivenDate(date);
+    setGivenTime(time);
     setOpen(true);
   }
   function closeSheet() {
@@ -98,6 +78,18 @@ export function GiveDose({
     };
   }, [open]);
 
+  function pickMed(id: string) {
+    setSelectedId(id);
+    const m = meds.find((x) => x.id === id);
+    if (m) {
+      setUnit(m.unit);
+      setDose(m.defaultDose != null ? String(m.defaultDose) : "");
+    } else {
+      setUnit("pill");
+      setDose("");
+    }
+  }
+
   function step(delta: number) {
     setDose((d) => {
       const n = (parseFloat(d) || 0) + delta;
@@ -107,11 +99,17 @@ export function GiveDose({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (isNew && !name.trim()) return;
     setPending(true);
     const fd = new FormData();
-    fd.set("medication_id", medicationId);
-    if (scheduledFor) fd.set("scheduled_for", scheduledFor);
-    fd.set("unit", unit);
+    const effectiveUnit = selected ? selected.unit : unit;
+    if (selected) {
+      fd.set("medication_id", selected.id);
+    } else {
+      fd.set("name", name.trim());
+      if (strength.trim()) fd.set("strength", strength.trim());
+    }
+    fd.set("unit", effectiveUnit || "pill");
     if (dose !== "") fd.set("dose_amount", dose);
     if (givenDate && givenTime) {
       fd.set("given_date", givenDate);
@@ -123,35 +121,27 @@ export function GiveDose({
     }
     if (notes) fd.set("notes", notes);
     try {
-      if (isEdit) await editDose(editLogId!, fd);
-      else await logDose(fd);
+      await logAdHocDose(fd);
       closeSheet();
     } finally {
       setPending(false);
     }
   }
 
+  const displayUnit = selected ? selected.unit : unit || "pill";
+
   return (
     <>
-      {trigger ? (
-        <button
-          onClick={openSheet}
-          className="tap flex min-w-0 flex-1 items-center gap-3 rounded-row text-left"
-          aria-label={`Edit dose for ${medicationName}`}
-        >
-          {trigger}
-        </button>
-      ) : (
-        <button
-          onClick={openSheet}
-          className="tap shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
-        >
-          {label}
-        </button>
-      )}
+      <button
+        onClick={openSheet}
+        className="tap flex w-full items-center justify-center gap-1.5 rounded-row border border-dashed border-border-strong py-3 text-sm font-semibold text-muted hover:border-accent hover:text-accent"
+      >
+        <PlusIcon className="size-4" />
+        Log a one-off dose
+      </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={`Log dose for ${medicationName}`}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Log a one-off dose">
           <button
             aria-label="Close"
             onClick={closeSheet}
@@ -168,18 +158,57 @@ export function GiveDose({
           >
             <div aria-hidden className="mx-auto mb-4 h-1 w-9 rounded-full bg-border-strong" />
             <div className="mb-4">
-              <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">
-                {isEdit ? "Edit dose" : "Log dose"}
-              </p>
-              <p className="truncate text-lg font-semibold text-ink">
-                {medicationName}
-                {strength && <span className="ml-1.5 text-sm font-normal text-muted">{strength}</span>}
-              </p>
+              <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">One-off dose</p>
+              <p className="text-lg font-semibold text-ink">Something off-schedule</p>
             </div>
+
+            {/* Med selector — known med or a new one-off */}
+            <label className="mb-2 block">
+              <span className="sr-only">Medication</span>
+              <select
+                value={selectedId}
+                onChange={(e) => pickMed(e.target.value)}
+                className="input"
+              >
+                <option value="">＋ New / one-off…</option>
+                {meds.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                    {m.strength ? ` (${m.strength})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {isNew && (
+              <div className="mb-2 grid grid-cols-1 gap-2">
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name (e.g. Benadryl)"
+                  required
+                  className="input"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    placeholder="Unit (e.g. pill)"
+                    className="input"
+                  />
+                  <input
+                    value={strength}
+                    onChange={(e) => setStrength(e.target.value)}
+                    placeholder="Strength (e.g. 25 mg)"
+                    className="input"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Dose stepper */}
             <div className="mb-3 flex items-center justify-between gap-3 rounded-row bg-surface-2 p-3">
-              <span className="text-sm font-medium text-muted">Dose ({unit})</span>
+              <span className="text-sm font-medium text-muted">Dose ({displayUnit})</span>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => step(-1)} className="tap grid size-9 place-items-center rounded-full bg-surface text-ink shadow-[var(--shadow-sm)] hover:text-accent" aria-label="Decrease dose">
                   <MinusIcon className="size-4" />
@@ -198,8 +227,7 @@ export function GiveDose({
               </div>
             </div>
 
-            {/* Time given — defaults to now, but editable so you can log the
-                actual time rather than when you happened to open the app. */}
+            {/* Time given */}
             <div className="mb-3 flex items-center justify-between gap-3 rounded-row bg-surface-2 p-3">
               <span className="text-sm font-medium text-muted">Time given</span>
               <input
@@ -235,7 +263,7 @@ export function GiveDose({
                 disabled={pending}
                 className="tap flex-1 rounded-full bg-accent py-3 text-sm font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
               >
-                {pending ? "Saving…" : isEdit ? "Save changes" : "Confirm dose"}
+                {pending ? "Saving…" : "Log dose"}
               </button>
             </div>
           </form>

@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { DateTime } from "luxon";
 import { getSupabase } from "./supabase";
+import { appTimezone } from "./env";
 import type { MedType } from "./types";
 
 interface ScheduleInput {
@@ -31,6 +33,23 @@ function numOrNull(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Build a UTC ISO timestamp from a wall-clock date ("YYYY-MM-DD") and time
+ * ("HH:MM") entered by the user, interpreting them in APP_TIMEZONE (the dog's
+ * local time) — not server-local time. Returns null if either is missing/invalid,
+ * so the caller can fall back to the DB `now()` default.
+ */
+function buildGivenAt(
+  date: FormDataEntryValue | null,
+  time: FormDataEntryValue | null,
+): string | null {
+  const d = String(date ?? "").trim();
+  const t = String(time ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{2}:\d{2}/.test(t)) return null;
+  const dt = DateTime.fromISO(`${d}T${t.slice(0, 5)}`, { zone: appTimezone() });
+  return dt.isValid ? dt.toUTC().toISO() : null;
+}
+
 async function replaceSchedules(medicationId: string, schedules: ScheduleInput[]) {
   const supabase = getSupabase();
   await supabase.from("schedules").delete().eq("medication_id", medicationId);
@@ -58,7 +77,10 @@ export async function createMedication(formData: FormData) {
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),
+      strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
+      reminder_lead_minutes:
+        type === "as_needed" ? 0 : numOrNull(formData.get("reminder_lead_minutes")) ?? 0,
       active: true,
     })
     .select("id")
@@ -84,7 +106,10 @@ export async function updateMedication(id: string, formData: FormData) {
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),
+      strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
+      reminder_lead_minutes:
+        type === "as_needed" ? 0 : numOrNull(formData.get("reminder_lead_minutes")) ?? 0,
     })
     .eq("id", id);
   if (error) throw error;
@@ -120,9 +145,12 @@ export async function deleteMedication(id: string) {
 export async function logDose(formData: FormData) {
   const supabase = getSupabase();
   const scheduledFor = String(formData.get("scheduled_for") ?? "").trim();
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
   const { error } = await supabase.from("dose_logs").insert({
     medication_id: String(formData.get("medication_id")),
     scheduled_for: scheduledFor || null,
+    // When the user noted a time, honor it (in app tz); else let the DB stamp now().
+    ...(givenAt ? { given_at: givenAt } : {}),
     dose_amount: numOrNull(formData.get("dose_amount")),
     unit: String(formData.get("unit") ?? "").trim() || null,
     given_by: String(formData.get("given_by") ?? "").trim() || null,
@@ -130,6 +158,68 @@ export async function logDose(formData: FormData) {
   });
   // Unique-violation on (medication_id, scheduled_for) means it was already logged.
   if (error && error.code !== "23505") throw error;
+  revalidatePath("/");
+  revalidatePath("/history");
+}
+
+/**
+ * Log a dose that isn't on the regular schedule. Either references a known med
+ * (`medication_id`) or, when a free-typed `name` is given, auto-creates a hidden
+ * `as_needed` med (`is_one_off`) so the dose has something to attribute to.
+ */
+export async function logAdHocDose(formData: FormData) {
+  const supabase = getSupabase();
+  let medicationId = String(formData.get("medication_id") ?? "").trim();
+  const unit = String(formData.get("unit") ?? "").trim() || "pill";
+
+  if (!medicationId) {
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) throw new Error("A medication name is required.");
+    const { data, error } = await supabase
+      .from("medications")
+      .insert({
+        name,
+        type: "as_needed",
+        unit,
+        strength: String(formData.get("strength") ?? "").trim() || null,
+        active: true,
+        is_one_off: true,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    medicationId = data.id;
+  }
+
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
+  const { error } = await supabase.from("dose_logs").insert({
+    medication_id: medicationId,
+    scheduled_for: null,
+    ...(givenAt ? { given_at: givenAt } : {}),
+    dose_amount: numOrNull(formData.get("dose_amount")),
+    unit,
+    given_by: String(formData.get("given_by") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  });
+  if (error) throw error;
+  revalidatePath("/");
+  revalidatePath("/history");
+}
+
+/** Edit an already-logged dose (amount, time, who gave it, notes). */
+export async function editDose(logId: string, formData: FormData) {
+  const supabase = getSupabase();
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
+  const { error } = await supabase
+    .from("dose_logs")
+    .update({
+      dose_amount: numOrNull(formData.get("dose_amount")),
+      ...(givenAt ? { given_at: givenAt } : {}),
+      given_by: String(formData.get("given_by") ?? "").trim() || null,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    })
+    .eq("id", logId);
+  if (error) throw error;
   revalidatePath("/");
   revalidatePath("/history");
 }

@@ -30,8 +30,11 @@ create table if not exists pawscriptions.medications (
   type         text not null check (type in ('fixed', 'variable', 'as_needed')),
   unit         text not null default 'pill',     -- 'pill', 'mg', 'ml', 'tablet'...
   default_dose numeric,                           -- fixed: the dose; variable: fallback
+  strength     text,                              -- optional label, e.g. '25 mg' (descriptive)
   instructions text,
   active       boolean not null default true,
+  is_one_off   boolean not null default false,    -- ad-hoc med from a one-off dose; hidden from lists/pickers
+  reminder_lead_minutes integer not null default 0, -- send the push this many minutes before dose time
   created_at   timestamptz not null default now()
 );
 

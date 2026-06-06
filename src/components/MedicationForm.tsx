@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MedType, MedicationWithSchedules } from "@/lib/types";
+import type { ParsedLabel } from "@/lib/parseLabel";
+import { ScanLabel } from "./ScanLabel";
 import { PlusIcon, XIcon } from "./icons";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"]; // index = 0..6 (Sun..Sat)
@@ -38,8 +40,26 @@ export function MedicationForm({
   const [rows, setRows] = useState<Row[]>(toRows(med));
   const [pending, setPending] = useState(false);
 
+  // Controlled so a label scan can prefill them.
+  const [name, setName] = useState(med?.name ?? "");
+  const [unit, setUnit] = useState(med?.unit ?? "pill");
+  const [strength, setStrength] = useState(med?.strength ?? "");
+  const [dose, setDose] = useState(med?.default_dose != null ? String(med.default_dose) : "");
+  const [instructions, setInstructions] = useState(med?.instructions ?? "");
+
   const showSchedule = type !== "as_needed";
   const typeHint = TYPES.find((t) => t.value === type)!.hint;
+
+  function applyParsed(p: ParsedLabel) {
+    if (p.name) setName(p.name);
+    if (p.strength) setStrength(p.strength);
+    if (p.unit) setUnit(p.unit);
+    if (p.dose != null) setDose(String(p.dose));
+    if (p.times && p.times.length > 0) {
+      setRows(p.times.map((t) => ({ time: t, days: [] })));
+      if (type === "as_needed") setType("fixed"); // a schedule implies it's scheduled
+    }
+  }
 
   function updateRow(i: number, patch: Partial<Row>) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -78,9 +98,18 @@ export function MedicationForm({
 
   return (
     <form action={onSubmit} className="flex flex-col gap-5">
+      {!med && <ScanLabel onParsed={applyParsed} />}
+
       <Group>
         <Field label="Name">
-          <input name="name" required defaultValue={med?.name} className="input" placeholder="e.g. Apoquel" />
+          <input
+            name="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="input"
+            placeholder="e.g. Apoquel"
+          />
         </Field>
 
         <Field label="Type">
@@ -108,24 +137,41 @@ export function MedicationForm({
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Unit">
-            <input name="unit" defaultValue={med?.unit ?? "pill"} className="input" />
+            <input
+              name="unit"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="input"
+            />
           </Field>
           <Field label={type === "variable" ? "Default dose" : "Dose"}>
             <input
               name="default_dose"
               type="number"
               step="any"
-              defaultValue={med?.default_dose ?? ""}
+              value={dose}
+              onChange={(e) => setDose(e.target.value)}
               className="input tnum"
               placeholder="e.g. 1"
             />
           </Field>
         </div>
 
+        <Field label="Strength (optional)">
+          <input
+            name="strength"
+            value={strength}
+            onChange={(e) => setStrength(e.target.value)}
+            className="input"
+            placeholder="e.g. 25 mg"
+          />
+        </Field>
+
         <Field label="Instructions (optional)">
           <textarea
             name="instructions"
-            defaultValue={med?.instructions ?? ""}
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
             rows={2}
             className="input resize-none"
             placeholder="With food, etc."
@@ -191,6 +237,23 @@ export function MedicationForm({
             <PlusIcon className="size-4" />
             Add another time
           </button>
+
+          <div className="mt-4">
+            <Field label="Remind me">
+              <select
+                name="reminder_lead_minutes"
+                defaultValue={String(med?.reminder_lead_minutes ?? 0)}
+                className="input"
+              >
+                <option value="0">At dose time</option>
+                <option value="5">5 minutes before</option>
+                <option value="10">10 minutes before</option>
+                <option value="15">15 minutes before</option>
+                <option value="30">30 minutes before</option>
+                <option value="60">1 hour before</option>
+              </select>
+            </Field>
+          </div>
         </div>
       )}
 

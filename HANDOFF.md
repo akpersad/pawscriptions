@@ -1,6 +1,30 @@
 # Pawscriptions — Handoff
 
-_Status as of 2026-06-06. Initial build complete; runs and builds cleanly._
+_Status as of 2026-06-06. Initial build complete; runs and builds cleanly. A refinement
+round on branch `feature/refinement` added 8 features + a mobile fix (see below)._
+
+## Refinement round (branch `feature/refinement`)
+
+Builds and lints clean (`npm run build`, `npm run lint`). One commit per item:
+
+1. **History date inputs** no longer overlap on iOS Safari (WebKit gives date inputs a large
+   intrinsic min-width; reset `-webkit-appearance` + `min-width` in `globals.css`).
+2. **Editable "time given"** on the dose sheet — logs the real time, interpreted in `APP_TIMEZONE`.
+3. **Edit a given dose** by tapping it on Today (`editDose` action).
+4. **Optional strength** (`medications.strength`, e.g. "25 mg") shown across the app.
+5. **Ad-hoc one-off doses** on Today — known med or free-typed (auto-creates a hidden
+   `is_one_off` as-needed med); off-schedule doses show in an "Extra today" section.
+6. **Who-gave dropdown** — Andrew / Cindy / Other (`GiverField`), replacing free text.
+7. **Per-med history page** at `/history/[medId]` — running log + 7/30-day/all-time counts.
+8. **Per-med reminder lead time** (`reminder_lead_minutes`) + grouped dynamic push copy
+   for meds due together; dog name via `APP_DOG_NAME` (defaults to `Bodhi`).
+9. **Label scanning** — client-side Tesseract.js OCR (`tesseract.js` dep) + `lib/parseLabel.ts`
+   prefill the med form; the photo is never uploaded or stored.
+
+**Schema:** three additive columns on `pawscriptions.medications` (`strength`, `is_one_off`,
+`reminder_lead_minutes`), applied to the live shared project via the MCP (only `pawscriptions`
+touched) and mirrored in `supabase/schema.sql`. No new tables. **New dep:** `tesseract.js`.
+**New optional env var:** `APP_DOG_NAME`. Deferred ideas live in `FUTURE_FEATURES.md`.
 
 ## Where things stand
 
@@ -57,13 +81,16 @@ Supabase key to the browser; the app never uses them).
 - ✅ Next.js 16 + TS + Tailwind v4 scaffold; PWA manifest + icons + `public/sw.js`.
 - ✅ Passphrase auth: `src/proxy.ts` guard + `src/lib/auth.ts` (jose) + `/login`.
 - ✅ Supabase schema (`supabase/schema.sql`), server-only client, data layer (`lib/data.ts`).
-- ✅ Medications CRUD (`/medications`, `/new`, `/[id]`) with the 3 types + schedule editor.
-- ✅ Today dashboard: due / given / as-needed, give-with-attribution, undo.
-- ✅ History/audit with med + date filters.
+- ✅ Medications CRUD (`/medications`, `/new`, `/[id]`) with the 3 types + schedule editor,
+  optional strength, per-med reminder lead time, and client-side label scanning.
+- ✅ Today dashboard: due / given / as-needed, give-with-attribution (editable time +
+  Andrew/Cindy/Other), tap-to-edit a given dose, one-off / off-schedule doses, undo.
+- ✅ History/audit with med + date filters, plus a per-med detail page (`/history/[medId]`)
+  with a running log and dose counts.
 - ✅ Settings: enable/disable push per device, send test, log out.
 - ✅ Reminder pipeline: subscribe API, `web-push` sender, cron route with tz-aware
-  due-now logic and `notifications_sent` dedupe.
-- ✅ Docs: README (setup/deploy), CLAUDE.md (AI guidance), this file.
+  lead-time fire logic, `notifications_sent` dedupe, and grouped dynamic copy.
+- ✅ Docs: README (setup/deploy), CLAUDE.md (AI guidance), FUTURE_FEATURES.md, this file.
 
 ## Smoke tests (local)
 
@@ -83,19 +110,29 @@ curl -s -o /dev/null -w "%{http_code}\n" localhost:3000/api/cron/reminders     #
 4. Add a **variable** med (no daily plan) → Today prompts "set today's dose"; the Give form
    lets you enter the actual amount.
 5. Add an **as-needed** med → "Give now" logs without a schedule and shows a count.
-6. After deploy + Home Screen install: Settings → Enable reminders → Send test.
-7. Trigger the cron manually:
-   `curl "https://<project>.vercel.app/api/cron/reminders?secret=$CRON_SECRET"`
-   → expect a push when a slot is due, and `{"sent":0}` on the next call (deduped).
+6. Tap a **given** dose on Today → the sheet reopens prefilled; change the time/amount/giver
+   and save (`editDose`).
+7. **Log a one-off dose** → either pick a known med or type a new name; it lands in "Extra
+   today" and in History, but the new one-off med stays out of the medications list.
+8. On **History**, tap a med name → its detail page shows the running log + 7/30-day/all-time
+   counts.
+9. On the **new-med form**, tap **Scan label**, photograph a printed label → fields prefill
+   for review (name may need fixing; that's expected).
+10. After deploy + Home Screen install: Settings → Enable reminders → Send test.
+11. Set a med's **Remind me** to "15 minutes before" and trigger the cron manually:
+    `curl "https://<project>.vercel.app/api/cron/reminders?secret=$CRON_SECRET"`
+    → expect a push ~15 min before the dose time, one combined push if several are due
+    together, and `{"sent":0}` on the next call (deduped).
 
 ## Possible next steps (not built)
 
+See **`FUTURE_FEATURES.md`** for the scoped backlog — supply/refill tracking (top priority),
+skip-with-reason, overdue escalation nudge, vet-export, weight log. Other ideas:
+
 - As-needed **minimum-interval** warning (e.g. "no more than every 8h").
-- A **follow-up nudge** if a scheduled dose is still ungiven N minutes later.
 - A dedicated **daily-dose-plan editor** for variable meds (currently set implicitly when
   logging; `setDailyPlan` action exists and is wired but has no standalone UI yet).
 - **Multi-pet** support (intentionally deferred — current model is single-dog).
-- Replace emoji nav icons with a proper icon set.
 
 ## Gotchas / notes
 
