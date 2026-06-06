@@ -29,16 +29,29 @@ Open http://localhost:3000 and log in with your `APP_PASSWORD`.
 
 ## 2. Supabase
 
-1. Create a free project at supabase.com.
+You can use a brand-new project or **share an existing one** with another app. Pawscriptions
+keeps all of its tables in a dedicated **`pawscriptions` Postgres schema** (never `public`),
+and the server client is pinned to that schema — so it can't read, write, or collide with
+anything the other app keeps in `public`. The setup is the same either way:
+
+1. Create a free project at supabase.com (or open the one you're sharing).
 2. Open **SQL Editor** and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
-3. **Project Settings → API** → copy:
+   It only **creates** the `pawscriptions` schema and its tables — it never touches `public`.
+3. **Project Settings → API → "Exposed schemas"** → add `pawscriptions` next to `public`,
+   then **Save** (this reloads the API so the tables become reachable). Required.
+4. **Project Settings → API** → copy:
    - `Project URL` → `SUPABASE_URL`
    - `service_role` secret key → `SUPABASE_SERVICE_ROLE_KEY` (server-only — never expose this)
 
-RLS is enabled on every table with **no policies**, so nothing is reachable with the public
-anon key. All access goes through the Next.js server using the service-role key, which
-bypasses RLS. That's the whole security model: the database is never directly public, and
-the app itself is gated by the passphrase.
+RLS is enabled on every table with **no policies**, and only the `service_role` is granted
+access to the `pawscriptions` schema — so nothing is reachable with the public anon key. All
+access goes through the Next.js server using the service-role key, which bypasses RLS. That's
+the whole security model: the database is never directly public, and the app itself is gated
+by the passphrase.
+
+> **Sharing a project:** the schema script and the running app only ever touch the
+> `pawscriptions` schema. Step 3 just *exposes* that schema over the API; it does not change
+> the other app's `public` schema or its access in any way.
 
 ## 3. Environment variables
 

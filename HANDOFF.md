@@ -9,7 +9,9 @@ all routes compiled). It runs locally; auth gate, login, manifest, service worke
 cron auth guard are smoke-tested and working.
 
 **The only thing between here and "live" is configuration**, not code:
-1. Create the Supabase project and run `supabase/schema.sql`.
+1. Create (or reuse a shared) Supabase project and run `supabase/schema.sql`. It creates a
+   dedicated `pawscriptions` schema so it never collides with another app in `public`. Then
+   add `pawscriptions` to **Settings → API → Exposed schemas** and Save (see README §2).
 2. Put the real `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` into `.env.local` (and Vercel).
 3. Deploy to Vercel; add all env vars there.
 4. Set up the cron-job.org job (see README §5).
