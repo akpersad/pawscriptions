@@ -39,6 +39,12 @@ anything the other app keeps in `public`. The setup is the same either way:
    It only **creates** the `pawscriptions` schema and its tables — it never touches `public`.
 3. **Project Settings → API → "Exposed schemas"** → add `pawscriptions` next to `public`,
    then **Save** (this reloads the API so the tables become reachable). Required.
+   - _Automated/SQL alternative_ (e.g. via the MCP, when you can't use the dashboard):
+     `alter role authenticator set pgrst.db_schemas = 'public, graphql_public, pawscriptions';`
+     then `notify pgrst, 'reload config';` **and** `notify pgrst, 'reload schema';`. Keep
+     `public, graphql_public` in the list so a shared app's API keeps working. Note this
+     sets it at the role level, so the dashboard field above may still show only the
+     defaults — editing/saving it there would override and drop `pawscriptions`.
 4. **Project Settings → API** → copy:
    - `Project URL` → `SUPABASE_URL`
    - `service_role` secret key → `SUPABASE_SERVICE_ROLE_KEY` (server-only — never expose this)
@@ -99,23 +105,24 @@ Repeat on both phones — each device gets its own push subscription.
 ## 7. Supabase MCP (optional, for AI tooling)
 
 The repo ships a project-scoped Supabase MCP server in [`.mcp.json`](.mcp.json) so AI
-assistants (e.g. Claude Code) can inspect the database. It is configured **read-only** and
-scoped to this project's ref, so it can't modify any data — yours or the other app's sharing
-the project. To use it:
+assistants (e.g. Claude Code) can inspect and manage the database. It points at Supabase's
+**hosted** MCP endpoint (`https://mcp.supabase.com/mcp?project_ref=…`), scoped to this
+project's ref. To use it:
 
-1. Create a personal access token at
-   <https://supabase.com/dashboard/account/tokens>.
-2. Export it where your MCP client runs (it's read from the environment, not auto-loaded
-   from `.env.local`):
-   ```bash
-   export SUPABASE_ACCESS_TOKEN=sbp_...
-   ```
-3. Restart the MCP client so it picks up `.mcp.json`.
+1. Run `/mcp` in Claude Code (or your MCP client's equivalent) and complete the **OAuth**
+   sign-in to Supabase. No `SUPABASE_ACCESS_TOKEN` / personal access token is needed —
+   auth is interactive, not an env var.
+2. That's it — the connection persists for the session.
 
 `.mcp.json` contains **no secrets** (only the non-sensitive project ref) and is committed.
-The token is a secret — it lives only in your environment / gitignored `.env*`, never in the
-repo. To allow writes, remove `--read-only` from `.mcp.json` (not recommended on a shared
-project).
+
+> ⚠️ **This server is read-write** (there is no `--read-only` flag), and the project is
+> **shared** with another app whose data lives in `public`. The hosted MCP grants
+> project-wide write/DDL — it is *not* confined to the `pawscriptions` schema. The
+> safeguard is procedural: only ever run statements against the `pawscriptions` schema;
+> never `DROP`/`ALTER`/`INSERT`/`UPDATE`/`DELETE` against `public`. For a stricter setup,
+> switch back to the stdio server with `--read-only` (it requires a `SUPABASE_ACCESS_TOKEN`
+> env var instead of OAuth).
 
 ---
 

@@ -8,33 +8,45 @@ The full app is implemented and the production build passes (`npm run build` —
 all routes compiled). It runs locally; auth gate, login, manifest, service worker, and the
 cron auth guard are smoke-tested and working.
 
-**The only thing between here and "live" is configuration**, not code:
-1. Create (or reuse a shared) Supabase project and run `supabase/schema.sql`. It creates a
-   dedicated `pawscriptions` schema so it never collides with another app in `public`. Then
-   add `pawscriptions` to **Settings → API → Exposed schemas** and Save (see README §2).
-2. Put the real `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` into `.env.local` (and Vercel).
-3. Deploy to Vercel; add all env vars there.
-4. Set up the cron-job.org job (see README §5).
+Supabase is now fully wired up and verified (details under "Resolved" below). **The
+remaining work to go live is configuration**, not code:
+1. ✅ **Done** — `supabase/schema.sql` run on the shared project; the dedicated
+   `pawscriptions` schema + all 6 tables exist, the schema is exposed, and REST
+   reachability is verified.
+2. ✅ **Done (locally)** — the real `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are in
+   `.env.local`, so data pages load against the live project. Still need to add these
+   (and every other env var) to Vercel — see step 3.
+3. Deploy to Vercel; add all env vars there (README §4).
+4. Set up the cron-job.org job (README §5).
 5. Add to Home Screen on both iPhones and enable reminders (README §6).
 
-Until step 2, any data page returns a 500 — verified to be a DNS error on the placeholder
-Supabase host (`your-project.supabase.co`), **not a code bug**.
-
-## ⚠️ Open issues (as of 2026-06-06, branch `shared-supabase-isolation`)
+## ✅ Resolved (2026-06-06, branch `shared-supabase-isolation`)
 
 This branch moved all tables into a dedicated `pawscriptions` schema so the app can't
-interfere with another app sharing the same Supabase project. Two config steps remain —
-**not code bugs**:
+interfere with another app sharing the same Supabase project. The two former blocking
+config issues are now done:
 
-1. **Expose the schema (blocking).** Loading `/` currently 500s with:
-   `PGRST106 … Invalid schema: pawscriptions` / "Only the following schemas are exposed:
-   public, graphql_public". Fix: Supabase dashboard → **Settings → API → Exposed schemas**
-   → add `pawscriptions` → **Save** (PostgREST reloads in a few seconds). Also confirm
-   `supabase/schema.sql` has actually been run so the schema + tables exist. See README §2.
-2. **MCP token.** The read-only Supabase MCP server (`.mcp.json`, README §7) needs
-   `SUPABASE_ACCESS_TOKEN` exported in the shell where the MCP client runs (it is not
-   auto-loaded from `.env.local`). Create one at
-   https://supabase.com/dashboard/account/tokens.
+1. **Schema created + exposed (was blocking).** `supabase/schema.sql` was run via the
+   Supabase MCP — the `pawscriptions` schema + all 6 tables now exist, RLS on, granted to
+   `service_role` only. The schema was exposed by setting
+   `pgrst.db_schemas = 'public, graphql_public, pawscriptions'` on the `authenticator`
+   role, then `NOTIFY pgrst, 'reload config'` **and** `NOTIFY pgrst, 'reload schema'`
+   (both needed — config exposes the schema, schema-cache reload discovers the tables).
+   Verified reachable: `GET /rest/v1/medications` with `Accept-Profile: pawscriptions`
+   and the service-role key returns `200 []`. Additive — `public`/`graphql_public` (the
+   other app) untouched.
+   ⚠️ **Caveat:** the expose was set at the **role level**, not via the dashboard, so
+   **Settings → API → Exposed schemas may still display only `public, graphql_public`**.
+   If anyone edits/saves that dashboard field it will overwrite the role setting and drop
+   `pawscriptions` — re-add it there (or re-run the `ALTER ROLE` + both `NOTIFY`s) if a
+   data page starts 500ing with `PGRST106`.
+2. **MCP connection.** `.mcp.json` now points at the **hosted** Supabase MCP server
+   (`https://mcp.supabase.com/mcp?project_ref=…`, **read-write**, no `--read-only`),
+   authenticated via **OAuth** (`/mcp` in Claude Code) — *not* a `SUPABASE_ACCESS_TOKEN`
+   env var, so the old "export a PAT" step is obsolete. The DB fixes above were applied
+   through it. ⚠️ This change to `.mcp.json` is **uncommitted**; commit it if you want it
+   to be the standing config. Because it can write project-wide on a **shared** project,
+   the guardrail is procedural: only ever touch the `pawscriptions` schema, never `public`.
 
 Already fixed this session: `APP_TIMEZONE` typo (`America/New York` → `America/New_York`),
 and removed stray `NEXT_PUBLIC_SUPABASE_*` keys from `.env.local` (they'd have shipped a
