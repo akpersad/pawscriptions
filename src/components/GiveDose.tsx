@@ -22,6 +22,7 @@ export function GiveDose({
   scheduledFor,
   defaultDose,
   unit,
+  strength,
   label = "Give",
   editLogId,
   initialDose,
@@ -36,6 +37,7 @@ export function GiveDose({
   scheduledFor?: string;
   defaultDose: number | null;
   unit: string;
+  strength?: string | null;
   label?: string;
   /** When set, the sheet edits this existing dose log instead of creating one. */
   editLogId?: string;
@@ -168,7 +170,10 @@ export function GiveDose({
               <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">
                 {isEdit ? "Edit dose" : "Log dose"}
               </p>
-              <p className="truncate text-lg font-semibold text-ink">{medicationName}</p>
+              <p className="truncate text-lg font-semibold text-ink">
+                {medicationName}
+                {strength && <span className="ml-1.5 text-sm font-normal text-muted">{strength}</span>}
+              </p>
             </div>
 
             {/* Dose stepper */}

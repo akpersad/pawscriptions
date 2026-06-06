@@ -30,6 +30,7 @@ create table if not exists pawscriptions.medications (
   type         text not null check (type in ('fixed', 'variable', 'as_needed')),
   unit         text not null default 'pill',     -- 'pill', 'mg', 'ml', 'tablet'...
   default_dose numeric,                           -- fixed: the dose; variable: fallback
+  strength     text,                              -- optional label, e.g. '25 mg' (descriptive)
   instructions text,
   active       boolean not null default true,
   created_at   timestamptz not null default now()

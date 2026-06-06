@@ -122,6 +122,15 @@ export function MedicationForm({
           </Field>
         </div>
 
+        <Field label="Strength (optional)">
+          <input
+            name="strength"
+            defaultValue={med?.strength ?? ""}
+            className="input"
+            placeholder="e.g. 25 mg"
+          />
+        </Field>
+
         <Field label="Instructions (optional)">
           <textarea
             name="instructions"

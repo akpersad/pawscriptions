@@ -83,6 +83,7 @@ export default async function TodayPage() {
               <li key={m.id} className="dose-row">
                 <RowBody
                   name={m.name}
+                  strength={m.strength}
                   meta={
                     todays.length === 0
                       ? "Not given today"
@@ -94,6 +95,7 @@ export default async function TodayPage() {
                   medicationName={m.name}
                   defaultDose={m.default_dose}
                   unit={m.unit}
+                  strength={m.strength}
                   label="Give"
                 />
               </li>
@@ -178,10 +180,23 @@ function ProgressRing({ given, total, done }: { given: number; total: number; do
 }
 
 /* ---- Rows ----------------------------------------------------------------- */
-function RowBody({ name, meta, tone }: { name: string; meta: React.ReactNode; tone?: "due" }) {
+function RowBody({
+  name,
+  strength,
+  meta,
+  tone,
+}: {
+  name: string;
+  strength?: string | null;
+  meta: React.ReactNode;
+  tone?: "due";
+}) {
   return (
     <div className="min-w-0 flex-1">
-      <p className="truncate font-medium text-ink">{name}</p>
+      <p className="truncate font-medium text-ink">
+        {name}
+        {strength && <span className="ml-1.5 text-[0.8125rem] font-normal text-muted">{strength}</span>}
+      </p>
       <p className={`tnum mt-0.5 truncate text-[0.8125rem] ${tone === "due" ? "text-warning" : "text-muted"}`}>
         {meta}
       </p>
@@ -201,13 +216,14 @@ function DueRow({ slot: s, overdue }: { slot: DoseSlot; overdue?: boolean }) {
   );
   return (
     <li className="dose-row">
-      <RowBody name={s.medication.name} meta={meta} tone={overdue ? "due" : undefined} />
+      <RowBody name={s.medication.name} strength={s.medication.strength} meta={meta} tone={overdue ? "due" : undefined} />
       <GiveDose
         medicationId={s.medication.id}
         medicationName={s.medication.name}
         scheduledFor={s.scheduledFor}
         defaultDose={s.plannedDose}
         unit={s.medication.unit}
+        strength={s.medication.strength}
       />
     </li>
   );
@@ -222,7 +238,12 @@ function GivenRow({ slot: s }: { slot: DoseSlot }) {
         <CheckIcon className="size-[1.15rem]" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{s.medication.name}</p>
+        <p className="truncate font-medium text-ink">
+          {s.medication.name}
+          {s.medication.strength && (
+            <span className="ml-1.5 text-[0.8125rem] font-normal text-muted">{s.medication.strength}</span>
+          )}
+        </p>
         <p className="tnum mt-0.5 truncate text-[0.8125rem] text-muted">
           {s.timeLabel}
           {log?.dose_amount != null && ` · ${log.dose_amount} ${log.unit ?? s.medication.unit}`}
@@ -240,6 +261,7 @@ function GivenRow({ slot: s }: { slot: DoseSlot }) {
           medicationName={s.medication.name}
           defaultDose={s.plannedDose}
           unit={s.medication.unit}
+          strength={s.medication.strength}
           editLogId={log.id}
           initialDose={log.dose_amount}
           initialGivenBy={log.given_by}

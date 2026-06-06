@@ -70,9 +70,14 @@ export default async function MedicationsPage() {
                     )}
                   </div>
                   <p className="tnum mt-0.5 truncate text-[0.8125rem] text-muted">
-                    {m.type === "as_needed"
-                      ? "Given as needed"
-                      : scheduleSummary(m.schedules.map((s) => s.time_of_day))}
+                    {[
+                      m.strength,
+                      m.type === "as_needed"
+                        ? "Given as needed"
+                        : scheduleSummary(m.schedules.map((s) => s.time_of_day)),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
                 <ChevronRightIcon className="size-5 shrink-0 text-faint" />

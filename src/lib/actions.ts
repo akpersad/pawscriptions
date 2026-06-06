@@ -77,6 +77,7 @@ export async function createMedication(formData: FormData) {
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),
+      strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
       active: true,
     })
@@ -103,6 +104,7 @@ export async function updateMedication(id: string, formData: FormData) {
       type,
       unit: String(formData.get("unit") ?? "pill").trim() || "pill",
       default_dose: numOrNull(formData.get("default_dose")),
+      strength: String(formData.get("strength") ?? "").trim() || null,
       instructions: String(formData.get("instructions") ?? "").trim() || null,
     })
     .eq("id", id);

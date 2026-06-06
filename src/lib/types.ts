@@ -6,6 +6,7 @@ export interface Medication {
   type: MedType;
   unit: string;
   default_dose: number | null;
+  strength: string | null; // optional label, e.g. "25 mg"
   instructions: string | null;
   active: boolean;
   created_at: string;
