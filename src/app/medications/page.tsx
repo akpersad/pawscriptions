@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { getMedicationsWithSchedules } from "@/lib/data";
+import { ChevronRightIcon, PawIcon, PlusIcon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -31,36 +32,50 @@ export default async function MedicationsPage() {
       action={
         <Link
           href="/medications/new"
-          className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white"
+          className="tap inline-flex items-center gap-1 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
         >
-          + Add
+          <PlusIcon className="size-4" />
+          Add
         </Link>
       }
     >
       {meds.length === 0 ? (
-        <p className="text-slate-500">No medications yet. Tap “Add” to start.</p>
+        <div className="mt-6 flex flex-col items-center rounded-card bg-surface px-6 py-12 text-center" style={{ boxShadow: "var(--shadow-md)" }}>
+          <span className="grid size-14 place-items-center rounded-full bg-accent-soft text-accent">
+            <PawIcon className="size-8" />
+          </span>
+          <p className="mt-4 font-medium text-ink">No medications yet</p>
+          <p className="mt-1 max-w-[15rem] text-sm text-muted">
+            Add a medication to define its schedule and start logging doses.
+          </p>
+        </div>
       ) : (
         <ul className="flex flex-col gap-2">
           {meds.map((m) => (
             <li key={m.id}>
               <Link
                 href={`/medications/${m.id}`}
-                className={`block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100 ${
-                  m.active ? "" : "opacity-60"
-                }`}
+                className={`dose-row tap hover:bg-surface-2 ${m.active ? "" : "opacity-60"}`}
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{m.name}</p>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                    {TYPE_LABEL[m.type]}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium text-ink">{m.name}</p>
+                    <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[0.6875rem] font-medium text-muted ring-1 ring-border">
+                      {TYPE_LABEL[m.type]}
+                    </span>
+                    {!m.active && (
+                      <span className="shrink-0 text-[0.6875rem] font-medium uppercase tracking-wide text-faint">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  <p className="tnum mt-0.5 truncate text-[0.8125rem] text-muted">
+                    {m.type === "as_needed"
+                      ? "Given as needed"
+                      : scheduleSummary(m.schedules.map((s) => s.time_of_day))}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-slate-500">
-                  {m.type === "as_needed"
-                    ? "Given as needed"
-                    : scheduleSummary(m.schedules.map((s) => s.time_of_day))}
-                  {!m.active && " · inactive"}
-                </p>
+                <ChevronRightIcon className="size-5 shrink-0 text-faint" />
               </Link>
             </li>
           ))}

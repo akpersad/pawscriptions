@@ -19,16 +19,16 @@ export default function Error({
 
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center p-6">
-      <div className="glass w-full max-w-sm rounded-3xl border border-white/50 p-8 text-center shadow-[0_8px_30px_rgba(15,23,42,0.18)]">
-        <h1 className="text-lg font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-sm text-slate-500">
+      <div className="w-full max-w-sm rounded-card bg-surface p-8 text-center" style={{ boxShadow: "var(--shadow-lg)" }}>
+        <h1 className="font-display text-xl text-ink">Something went wrong</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
           {schemaIssue
             ? "Couldn't reach the database. The pawscriptions schema may no longer be exposed in Supabase (Settings → API → Exposed schemas)."
             : "An unexpected error occurred while loading this page."}
         </p>
         <button
           onClick={() => unstable_retry()}
-          className="mt-5 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white hover:bg-teal-700"
+          className="tap mt-5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
         >
           Try again
         </button>

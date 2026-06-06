@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { MedicationForm } from "@/components/MedicationForm";
@@ -18,14 +17,7 @@ export default async function EditMedicationPage({
   if (!med) notFound();
 
   return (
-    <AppShell
-      title="Edit medication"
-      action={
-        <Link href="/medications" className="text-sm text-slate-500">
-          Back
-        </Link>
-      }
-    >
+    <AppShell title="Edit medication" subtitle={med.name} back={{ href: "/medications" }}>
       <MedicationForm med={med} action={updateMedication.bind(null, med.id)} />
       <MedActions id={med.id} active={med.active} />
     </AppShell>
