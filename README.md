@@ -29,16 +29,35 @@ Open http://localhost:3000 and log in with your `APP_PASSWORD`.
 
 ## 2. Supabase
 
-1. Create a free project at supabase.com.
+You can use a brand-new project or **share an existing one** with another app. Pawscriptions
+keeps all of its tables in a dedicated **`pawscriptions` Postgres schema** (never `public`),
+and the server client is pinned to that schema — so it can't read, write, or collide with
+anything the other app keeps in `public`. The setup is the same either way:
+
+1. Create a free project at supabase.com (or open the one you're sharing).
 2. Open **SQL Editor** and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
-3. **Project Settings → API** → copy:
+   It only **creates** the `pawscriptions` schema and its tables — it never touches `public`.
+3. **Project Settings → API → "Exposed schemas"** → add `pawscriptions` next to `public`,
+   then **Save** (this reloads the API so the tables become reachable). Required.
+   - _Automated/SQL alternative_ (e.g. via the MCP, when you can't use the dashboard):
+     `alter role authenticator set pgrst.db_schemas = 'public, graphql_public, pawscriptions';`
+     then `notify pgrst, 'reload config';` **and** `notify pgrst, 'reload schema';`. Keep
+     `public, graphql_public` in the list so a shared app's API keeps working. Note this
+     sets it at the role level, so the dashboard field above may still show only the
+     defaults — editing/saving it there would override and drop `pawscriptions`.
+4. **Project Settings → API** → copy:
    - `Project URL` → `SUPABASE_URL`
    - `service_role` secret key → `SUPABASE_SERVICE_ROLE_KEY` (server-only — never expose this)
 
-RLS is enabled on every table with **no policies**, so nothing is reachable with the public
-anon key. All access goes through the Next.js server using the service-role key, which
-bypasses RLS. That's the whole security model: the database is never directly public, and
-the app itself is gated by the passphrase.
+RLS is enabled on every table with **no policies**, and only the `service_role` is granted
+access to the `pawscriptions` schema — so nothing is reachable with the public anon key. All
+access goes through the Next.js server using the service-role key, which bypasses RLS. That's
+the whole security model: the database is never directly public, and the app itself is gated
+by the passphrase.
+
+> **Sharing a project:** the schema script and the running app only ever touch the
+> `pawscriptions` schema. Step 3 just *exposes* that schema over the API; it does not change
+> the other app's `public` schema or its access in any way.
 
 ## 3. Environment variables
 
@@ -82,6 +101,28 @@ iOS only allows web push for **installed** PWAs on **iOS 16.4+**:
 4. **Settings → Enable reminders**, allow the permission, then **Send test** to confirm.
 
 Repeat on both phones — each device gets its own push subscription.
+
+## 7. Supabase MCP (optional, for AI tooling)
+
+The repo ships a project-scoped Supabase MCP server in [`.mcp.json`](.mcp.json) so AI
+assistants (e.g. Claude Code) can inspect and manage the database. It points at Supabase's
+**hosted** MCP endpoint (`https://mcp.supabase.com/mcp?project_ref=…`), scoped to this
+project's ref. To use it:
+
+1. Run `/mcp` in Claude Code (or your MCP client's equivalent) and complete the **OAuth**
+   sign-in to Supabase. No `SUPABASE_ACCESS_TOKEN` / personal access token is needed —
+   auth is interactive, not an env var.
+2. That's it — the connection persists for the session.
+
+`.mcp.json` contains **no secrets** (only the non-sensitive project ref) and is committed.
+
+> ⚠️ **This server is read-write** (there is no `--read-only` flag), and the project is
+> **shared** with another app whose data lives in `public`. The hosted MCP grants
+> project-wide write/DDL — it is *not* confined to the `pawscriptions` schema. The
+> safeguard is procedural: only ever run statements against the `pawscriptions` schema;
+> never `DROP`/`ALTER`/`INSERT`/`UPDATE`/`DELETE` against `public`. For a stricter setup,
+> switch back to the stdio server with `--read-only` (it requires a `SUPABASE_ACCESS_TOKEN`
+> env var instead of OAuth).
 
 ---
 

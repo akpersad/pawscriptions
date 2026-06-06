@@ -20,6 +20,11 @@ accounts**. See README.md for setup/deploy and HANDOFF.md for status.
 - **No client-side DB access.** Supabase is reached only from the server via the
   service-role key in `src/lib/supabase.ts` (imports `server-only`). Never add
   `NEXT_PUBLIC_SUPABASE_*` or query Supabase from a Client Component.
+- **Shared Supabase project → dedicated schema.** This project's DB may be shared with
+  another app that lives in `public`. ALL Pawscriptions tables live in their own
+  `pawscriptions` schema, and the client in `src/lib/supabase.ts` is pinned to it
+  (`db: { schema: "pawscriptions" }`), so `.from("...")` calls can never touch `public`.
+  Keep new tables in `pawscriptions` (see `supabase/schema.sql`); never query `public`.
 - **RLS is on with no policies** — security comes from (a) the DB only being reachable
   server-side and (b) the passphrase gate in `src/proxy.ts`. Don't loosen this.
 - **Auth = one shared passphrase** (`APP_PASSWORD`) → signed cookie (`src/lib/auth.ts`).
