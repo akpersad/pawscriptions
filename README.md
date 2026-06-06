@@ -96,6 +96,27 @@ iOS only allows web push for **installed** PWAs on **iOS 16.4+**:
 
 Repeat on both phones — each device gets its own push subscription.
 
+## 7. Supabase MCP (optional, for AI tooling)
+
+The repo ships a project-scoped Supabase MCP server in [`.mcp.json`](.mcp.json) so AI
+assistants (e.g. Claude Code) can inspect the database. It is configured **read-only** and
+scoped to this project's ref, so it can't modify any data — yours or the other app's sharing
+the project. To use it:
+
+1. Create a personal access token at
+   <https://supabase.com/dashboard/account/tokens>.
+2. Export it where your MCP client runs (it's read from the environment, not auto-loaded
+   from `.env.local`):
+   ```bash
+   export SUPABASE_ACCESS_TOKEN=sbp_...
+   ```
+3. Restart the MCP client so it picks up `.mcp.json`.
+
+`.mcp.json` contains **no secrets** (only the non-sensitive project ref) and is committed.
+The token is a secret — it lives only in your environment / gitignored `.env*`, never in the
+repo. To allow writes, remove `--read-only` from `.mcp.json` (not recommended on a shared
+project).
+
 ---
 
 ## Medication types
