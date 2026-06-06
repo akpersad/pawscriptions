@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { logDose } from "@/lib/actions";
+import { editDose, logDose } from "@/lib/actions";
 import { MinusIcon, PlusIcon } from "./icons";
 
 const GIVER_KEY = "pawscriptions_giver";
@@ -23,6 +23,13 @@ export function GiveDose({
   defaultDose,
   unit,
   label = "Give",
+  editLogId,
+  initialDose,
+  initialGivenBy,
+  initialNotes,
+  initialDate,
+  initialTime,
+  trigger,
 }: {
   medicationId: string;
   medicationName: string;
@@ -30,7 +37,17 @@ export function GiveDose({
   defaultDose: number | null;
   unit: string;
   label?: string;
+  /** When set, the sheet edits this existing dose log instead of creating one. */
+  editLogId?: string;
+  initialDose?: number | null;
+  initialGivenBy?: string | null;
+  initialNotes?: string | null;
+  initialDate?: string; // "YYYY-MM-DD" in app tz
+  initialTime?: string; // "HH:MM" in app tz
+  /** Custom trigger content; rendered as a full-width button. Falls back to the pill button. */
+  trigger?: React.ReactNode;
 }) {
+  const isEdit = editLogId != null;
   const [open, setOpen] = useState(false);
   const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
@@ -42,12 +59,22 @@ export function GiveDose({
 
   // Open/close with an enter/exit transition; lock body scroll while open.
   function openSheet() {
-    setDose(defaultDose != null ? String(defaultDose) : "");
-    setNotes("");
-    setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
-    const { date, time } = nowParts();
-    setGivenDate(date);
-    setGivenTime(time);
+    if (isEdit) {
+      // Prefill from the existing log so edits start from current values.
+      setDose(initialDose != null ? String(initialDose) : "");
+      setNotes(initialNotes ?? "");
+      setGivenBy(initialGivenBy ?? "");
+      const now = nowParts();
+      setGivenDate(initialDate || now.date);
+      setGivenTime(initialTime || now.time);
+    } else {
+      setDose(defaultDose != null ? String(defaultDose) : "");
+      setNotes("");
+      setGivenBy(typeof window !== "undefined" ? localStorage.getItem(GIVER_KEY) ?? "" : "");
+      const { date, time } = nowParts();
+      setGivenDate(date);
+      setGivenTime(time);
+    }
     setOpen(true);
   }
   function closeSheet() {
@@ -93,7 +120,8 @@ export function GiveDose({
     }
     if (notes) fd.set("notes", notes);
     try {
-      await logDose(fd);
+      if (isEdit) await editDose(editLogId!, fd);
+      else await logDose(fd);
       closeSheet();
     } finally {
       setPending(false);
@@ -102,12 +130,22 @@ export function GiveDose({
 
   return (
     <>
-      <button
-        onClick={openSheet}
-        className="tap shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
-      >
-        {label}
-      </button>
+      {trigger ? (
+        <button
+          onClick={openSheet}
+          className="tap flex min-w-0 flex-1 items-center gap-3 rounded-row text-left"
+          aria-label={`Edit dose for ${medicationName}`}
+        >
+          {trigger}
+        </button>
+      ) : (
+        <button
+          onClick={openSheet}
+          className="tap shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:bg-accent-hover"
+        >
+          {label}
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={`Log dose for ${medicationName}`}>
@@ -127,7 +165,9 @@ export function GiveDose({
           >
             <div aria-hidden className="mx-auto mb-4 h-1 w-9 rounded-full bg-border-strong" />
             <div className="mb-4">
-              <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">Log dose</p>
+              <p className="text-[0.75rem] font-medium uppercase tracking-[0.06em] text-muted">
+                {isEdit ? "Edit dose" : "Log dose"}
+              </p>
               <p className="truncate text-lg font-semibold text-ink">{medicationName}</p>
             </div>
 
@@ -197,7 +237,7 @@ export function GiveDose({
                 disabled={pending}
                 className="tap flex-1 rounded-full bg-accent py-3 text-sm font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-60"
               >
-                {pending ? "Saving…" : "Confirm dose"}
+                {pending ? "Saving…" : isEdit ? "Save changes" : "Confirm dose"}
               </button>
             </div>
           </form>

@@ -214,8 +214,10 @@ function DueRow({ slot: s, overdue }: { slot: DoseSlot; overdue?: boolean }) {
 }
 
 function GivenRow({ slot: s }: { slot: DoseSlot }) {
-  return (
-    <li className="dose-row">
+  const log = s.log;
+  const given = log ? DateTime.fromISO(log.given_at).setZone(appTimezone()) : null;
+  const body = (
+    <>
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
         <CheckIcon className="size-[1.15rem]" />
       </span>
@@ -223,12 +225,33 @@ function GivenRow({ slot: s }: { slot: DoseSlot }) {
         <p className="truncate font-medium text-ink">{s.medication.name}</p>
         <p className="tnum mt-0.5 truncate text-[0.8125rem] text-muted">
           {s.timeLabel}
-          {s.log?.dose_amount != null && ` · ${s.log.dose_amount} ${s.log.unit ?? s.medication.unit}`}
-          {s.log?.given_by && ` · ${s.log.given_by}`}
-          {s.log && ` · ${time(s.log.given_at)}`}
+          {log?.dose_amount != null && ` · ${log.dose_amount} ${log.unit ?? s.medication.unit}`}
+          {log?.given_by && ` · ${log.given_by}`}
+          {log && ` · ${time(log.given_at)}`}
         </p>
       </div>
-      {s.log && <UndoDose logId={s.log.id} />}
+    </>
+  );
+  return (
+    <li className="dose-row">
+      {log ? (
+        <GiveDose
+          medicationId={s.medication.id}
+          medicationName={s.medication.name}
+          defaultDose={s.plannedDose}
+          unit={s.medication.unit}
+          editLogId={log.id}
+          initialDose={log.dose_amount}
+          initialGivenBy={log.given_by}
+          initialNotes={log.notes}
+          initialDate={given!.toISODate()!}
+          initialTime={given!.toFormat("HH:mm")}
+          trigger={body}
+        />
+      ) : (
+        body
+      )}
+      {log && <UndoDose logId={log.id} />}
     </li>
   );
 }

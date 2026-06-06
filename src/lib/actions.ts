@@ -156,6 +156,24 @@ export async function logDose(formData: FormData) {
   revalidatePath("/history");
 }
 
+/** Edit an already-logged dose (amount, time, who gave it, notes). */
+export async function editDose(logId: string, formData: FormData) {
+  const supabase = getSupabase();
+  const givenAt = buildGivenAt(formData.get("given_date"), formData.get("given_time"));
+  const { error } = await supabase
+    .from("dose_logs")
+    .update({
+      dose_amount: numOrNull(formData.get("dose_amount")),
+      ...(givenAt ? { given_at: givenAt } : {}),
+      given_by: String(formData.get("given_by") ?? "").trim() || null,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    })
+    .eq("id", logId);
+  if (error) throw error;
+  revalidatePath("/");
+  revalidatePath("/history");
+}
+
 export async function undoDose(logId: string) {
   const supabase = getSupabase();
   const { error } = await supabase.from("dose_logs").delete().eq("id", logId);
