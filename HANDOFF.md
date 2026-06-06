@@ -20,6 +20,26 @@ cron auth guard are smoke-tested and working.
 Until step 2, any data page returns a 500 — verified to be a DNS error on the placeholder
 Supabase host (`your-project.supabase.co`), **not a code bug**.
 
+## ⚠️ Open issues (as of 2026-06-06, branch `shared-supabase-isolation`)
+
+This branch moved all tables into a dedicated `pawscriptions` schema so the app can't
+interfere with another app sharing the same Supabase project. Two config steps remain —
+**not code bugs**:
+
+1. **Expose the schema (blocking).** Loading `/` currently 500s with:
+   `PGRST106 … Invalid schema: pawscriptions` / "Only the following schemas are exposed:
+   public, graphql_public". Fix: Supabase dashboard → **Settings → API → Exposed schemas**
+   → add `pawscriptions` → **Save** (PostgREST reloads in a few seconds). Also confirm
+   `supabase/schema.sql` has actually been run so the schema + tables exist. See README §2.
+2. **MCP token.** The read-only Supabase MCP server (`.mcp.json`, README §7) needs
+   `SUPABASE_ACCESS_TOKEN` exported in the shell where the MCP client runs (it is not
+   auto-loaded from `.env.local`). Create one at
+   https://supabase.com/dashboard/account/tokens.
+
+Already fixed this session: `APP_TIMEZONE` typo (`America/New York` → `America/New_York`),
+and removed stray `NEXT_PUBLIC_SUPABASE_*` keys from `.env.local` (they'd have shipped a
+Supabase key to the browser; the app never uses them).
+
 ## What's done
 
 - ✅ Next.js 16 + TS + Tailwind v4 scaffold; PWA manifest + icons + `public/sw.js`.
